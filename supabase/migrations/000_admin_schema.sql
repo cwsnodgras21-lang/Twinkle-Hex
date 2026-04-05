@@ -1,0 +1,153 @@
+-- Twinkle & Hex Admin Schema (suggested)
+-- Run these in Supabase SQL editor when ready to create tables.
+-- Tables are modular - add only what you need per phase.
+
+-- Ingredients (raw materials for polish)
+-- CREATE TABLE ingredients (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name TEXT NOT NULL,
+--   sku TEXT,
+--   supplier TEXT,
+--   unit TEXT NOT NULL,
+--   quantity_on_hand NUMERIC DEFAULT 0,
+--   reorder_point NUMERIC,
+--   notes TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Supplies (packaging, labels, misc)
+-- CREATE TABLE supplies (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name TEXT NOT NULL,
+--   sku TEXT,
+--   category TEXT,
+--   unit TEXT NOT NULL,
+--   quantity_on_hand NUMERIC DEFAULT 0,
+--   reorder_point NUMERIC,
+--   notes TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Batches (production runs)
+-- CREATE TABLE batches (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   batch_number TEXT NOT NULL UNIQUE,
+--   product_id TEXT, -- Shopify product ID
+--   status TEXT DEFAULT 'planned',
+--   planned_date DATE,
+--   completed_at TIMESTAMPTZ,
+--   quantity_produced INTEGER,
+--   notes TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Finished inventory (post-production stock)
+-- CREATE TABLE finished_inventory (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   product_id TEXT NOT NULL, -- Shopify product ID
+--   variant_id TEXT,
+--   batch_id UUID REFERENCES batches(id),
+--   quantity INTEGER NOT NULL DEFAULT 0,
+--   location TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Releases (launch pipeline)
+-- CREATE TABLE releases (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name TEXT NOT NULL,
+--   product_handle TEXT,
+--   status TEXT DEFAULT 'draft',
+--   launch_date DATE,
+--   swatcher_deadline DATE,
+--   notes TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Swatchers (testers for new shades)
+-- CREATE TABLE swatchers (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name TEXT NOT NULL,
+--   email TEXT,
+--   social_handle TEXT,
+--   notes TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Swatcher assignments
+-- CREATE TABLE swatcher_assignments (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   swatcher_id UUID NOT NULL REFERENCES swatchers(id),
+--   release_id UUID NOT NULL REFERENCES releases(id),
+--   shade_name TEXT,
+--   status TEXT DEFAULT 'pending',
+--   sent_at TIMESTAMPTZ,
+--   feedback_notes TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Social posts (planning)
+-- CREATE TABLE social_posts (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   platform TEXT NOT NULL,
+--   content_type TEXT,
+--   scheduled_at TIMESTAMPTZ,
+--   published_at TIMESTAMPTZ,
+--   status TEXT DEFAULT 'draft',
+--   notes TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Retail partners
+-- CREATE TABLE retail_partners (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name TEXT NOT NULL,
+--   contact_email TEXT,
+--   contact_phone TEXT,
+--   address TEXT,
+--   status TEXT DEFAULT 'active',
+--   notes TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Events / expos
+-- CREATE TABLE events (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name TEXT NOT NULL,
+--   event_type TEXT,
+--   start_date DATE NOT NULL,
+--   end_date DATE,
+--   location TEXT,
+--   booth TEXT,
+--   status TEXT DEFAULT 'planned',
+--   notes TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Charity polishes
+-- CREATE TABLE charity_polishes (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name TEXT NOT NULL,
+--   product_id TEXT,
+--   charity_name TEXT NOT NULL,
+--   donation_per_unit NUMERIC,
+--   total_raised NUMERIC,
+--   status TEXT DEFAULT 'active',
+--   notes TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Future: RLS policies for admin-only access
+-- ALTER TABLE ingredients ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "Admin only" ON ingredients FOR ALL USING (auth.jwt() ->> 'role' = 'admin');

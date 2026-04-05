@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Twinkle & Hex brand palette - CSS variables for flexibility */
+:root {
+  --color-cyan: #4ac3ce;
+  --color-teal: #066782;
+  --color-ink: #2e333f;
+  --color-plum: #59486d;
+  --color-magenta: #cb508f;
+}
+
+@layer base {
+  body {
+    @apply bg-white text-ink antialiased;
+  }
+}

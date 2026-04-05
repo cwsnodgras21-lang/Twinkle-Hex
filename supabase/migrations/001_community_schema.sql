@@ -1,0 +1,87 @@
+-- Twinkle & Hex Community Forum Schema (suggested)
+-- Run these in Supabase SQL editor when ready to create tables.
+-- Extends the admin schema - community tables are modular.
+
+-- Community channels (topic categories)
+-- CREATE TABLE community_channels (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   slug TEXT NOT NULL UNIQUE,
+--   name TEXT NOT NULL,
+--   description TEXT,
+--   icon TEXT,
+--   sort_order INTEGER DEFAULT 0,
+--   is_archived BOOLEAN DEFAULT false,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Community posts (discussion threads)
+-- CREATE TABLE community_posts (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   channel_id UUID NOT NULL REFERENCES community_channels(id) ON DELETE CASCADE,
+--   author_id UUID NOT NULL,
+--   title TEXT NOT NULL,
+--   body TEXT NOT NULL,
+--   status TEXT DEFAULT 'published',
+--   reply_count INTEGER DEFAULT 0,
+--   view_count INTEGER DEFAULT 0,
+--   last_activity_at TIMESTAMPTZ DEFAULT now(),
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Community replies
+-- CREATE TABLE community_replies (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   post_id UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
+--   author_id UUID NOT NULL,
+--   parent_reply_id UUID REFERENCES community_replies(id) ON DELETE CASCADE,
+--   body TEXT NOT NULL,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Community profiles (extends auth.users)
+-- Future: Link to Shopify customer for verified purchaser
+-- CREATE TABLE community_profiles (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+--   username TEXT NOT NULL UNIQUE,
+--   display_name TEXT,
+--   avatar_url TEXT,
+--   bio TEXT,
+--   badge_ids UUID[] DEFAULT '{}',
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Community badges
+-- Future: verified_purchaser type checks Shopify order history
+-- CREATE TABLE community_badges (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   type TEXT NOT NULL,
+--   label TEXT NOT NULL,
+--   icon TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Moderation reports
+-- CREATE TABLE moderation_reports (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   reporter_id UUID NOT NULL,
+--   content_type TEXT NOT NULL,
+--   content_id UUID NOT NULL,
+--   reason TEXT,
+--   status TEXT DEFAULT 'pending',
+--   reviewed_by UUID,
+--   reviewed_at TIMESTAMPTZ,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Indexes for common queries
+-- CREATE INDEX idx_community_posts_channel ON community_posts(channel_id);
+-- CREATE INDEX idx_community_posts_last_activity ON community_posts(last_activity_at DESC);
+-- CREATE INDEX idx_community_replies_post ON community_replies(post_id);
+-- CREATE INDEX idx_moderation_reports_status ON moderation_reports(status);
