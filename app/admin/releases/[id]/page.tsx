@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AdminPageShell, FormShell, StatusBadge } from "@/components/admin";
 import { ReleaseForm } from "@/components/admin/releases";
 import { getReleaseById } from "@/lib/admin/releases";
+import { listPolishesForRelease } from "@/lib/admin/polishes";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -12,6 +13,7 @@ export default async function ReleaseDetailPage({ params }: Props) {
   const { id } = await params;
   const release = await getReleaseById(id);
   if (!release) notFound();
+  const polishes = await listPolishesForRelease(id);
 
   return (
     <AdminPageShell
@@ -58,10 +60,26 @@ export default async function ReleaseDetailPage({ params }: Props) {
 
       <div className="mt-8 space-y-6">
         <section className="bg-white border border-ink/10 rounded-lg p-4 md:p-6">
-          <h2 className="text-lg font-semibold text-ink mb-2">Shades / Polishes</h2>
-          <p className="text-sm text-ink/60">
-            Link shades and polishes to this release. Coming soon.
-          </p>
+          <h2 className="text-lg font-semibold text-ink mb-3">Shades / Polishes</h2>
+          {polishes.length === 0 ? (
+            <p className="text-sm text-ink/60">
+              No polishes linked to this release yet.
+            </p>
+          ) : (
+            <ul className="divide-y divide-ink/10 border border-ink/10 rounded-lg overflow-hidden">
+              {polishes.map((p) => (
+                <li key={p.id}>
+                  <Link
+                    href={`/admin/releases/${id}/polishes/${p.id}`}
+                    className="flex min-h-[44px] items-center px-4 py-3 text-sm text-ink hover:bg-ink/[0.03] active:bg-ink/[0.06] transition-colors"
+                  >
+                    <span className="font-medium">{p.name}</span>
+                    <span className="ml-auto text-teal text-xs shrink-0">View recipe →</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className="bg-white border border-ink/10 rounded-lg p-4 md:p-6">

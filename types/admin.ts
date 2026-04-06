@@ -103,6 +103,27 @@ export interface Release {
   updated_at: string;
 }
 
+/** Polish / shade row under a release */
+export interface ReleasePolish {
+  id: string;
+  release_id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** One line in a polish recipe (ingredient + amount in ounces) */
+export interface PolishRecipeLine {
+  id: string;
+  polish_id: string;
+  sort_order: number;
+  ingredient_name: string;
+  amount_oz: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // --- Swatchers (testers for new shades) ---
 export interface Swatcher {
   id: string;

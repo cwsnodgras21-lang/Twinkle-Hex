@@ -5,6 +5,7 @@ export * from "./ingredients";
 export * from "./supplies";
 export * from "./batches";
 export * from "./releases";
+export * from "./polishes";
 export * from "./inventory";
 export * from "./swatchers";
 export * from "./social";
