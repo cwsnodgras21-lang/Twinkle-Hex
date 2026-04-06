@@ -99,3 +99,122 @@ export async function getPolishDetail(
     lines: (lineRows ?? []).map((r) => mapLineRow(r as Record<string, unknown>)),
   };
 }
+
+export async function getPolishById(id: string): Promise<ReleasePolish | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("release_polishes").select("*").eq("id", id).single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null;
+    throw error;
+  }
+  return data ? mapPolishRow(data as Record<string, unknown>) : null;
+}
+
+export async function createReleasePolish(
+  releaseId: string,
+  input: { name: string; sort_order?: number }
+): Promise<ReleasePolish> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("release_polishes")
+    .insert({
+      release_id: releaseId,
+      name: input.name.trim(),
+      sort_order: input.sort_order ?? 0,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapPolishRow(data as Record<string, unknown>);
+}
+
+export async function updateReleasePolish(
+  id: string,
+  input: { name?: string; sort_order?: number }
+): Promise<ReleasePolish> {
+  const supabase = await createClient();
+  const patch: Record<string, unknown> = {};
+  if (input.name !== undefined) patch.name = input.name.trim();
+  if (input.sort_order !== undefined) patch.sort_order = input.sort_order;
+
+  const { data, error } = await supabase
+    .from("release_polishes")
+    .update(patch)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapPolishRow(data as Record<string, unknown>);
+}
+
+export async function deleteReleasePolish(id: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("release_polishes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+async function nextRecipeLineSortOrder(polishId: string): Promise<number> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("polish_recipe_lines")
+    .select("sort_order")
+    .eq("polish_id", polishId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return (data?.sort_order != null ? num(data.sort_order) : -1) + 1;
+}
+
+export async function createRecipeLine(
+  polishId: string,
+  input: { ingredient_name: string; amount_oz: number; sort_order?: number }
+): Promise<PolishRecipeLine> {
+  const supabase = await createClient();
+  const sort_order =
+    input.sort_order !== undefined ? input.sort_order : await nextRecipeLineSortOrder(polishId);
+
+  const { data, error } = await supabase
+    .from("polish_recipe_lines")
+    .insert({
+      polish_id: polishId,
+      ingredient_name: input.ingredient_name.trim(),
+      amount_oz: input.amount_oz,
+      sort_order,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapLineRow(data as Record<string, unknown>);
+}
+
+export async function updateRecipeLine(
+  id: string,
+  input: { ingredient_name?: string; amount_oz?: number; sort_order?: number }
+): Promise<PolishRecipeLine> {
+  const supabase = await createClient();
+  const patch: Record<string, unknown> = {};
+  if (input.ingredient_name !== undefined) patch.ingredient_name = input.ingredient_name.trim();
+  if (input.amount_oz !== undefined) patch.amount_oz = input.amount_oz;
+  if (input.sort_order !== undefined) patch.sort_order = input.sort_order;
+
+  const { data, error } = await supabase
+    .from("polish_recipe_lines")
+    .update(patch)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapLineRow(data as Record<string, unknown>);
+}
+
+export async function deleteRecipeLine(id: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("polish_recipe_lines").delete().eq("id", id);
+  if (error) throw error;
+}

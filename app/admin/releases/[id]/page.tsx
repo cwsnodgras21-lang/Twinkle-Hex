@@ -60,7 +60,15 @@ export default async function ReleaseDetailPage({ params }: Props) {
 
       <div className="mt-8 space-y-6">
         <section className="bg-white border border-ink/10 rounded-lg p-4 md:p-6">
-          <h2 className="text-lg font-semibold text-ink mb-3">Shades / Polishes</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+            <h2 className="text-lg font-semibold text-ink">Shades / Polishes</h2>
+            <Link
+              href={`/admin/releases/${id}/polishes/new`}
+              className="inline-flex items-center justify-center min-h-[44px] px-4 py-2 text-sm bg-teal text-white rounded-lg hover:opacity-90 shrink-0"
+            >
+              Add polish
+            </Link>
+          </div>
           {polishes.length === 0 ? (
             <p className="text-sm text-ink/60">
               No polishes linked to this release yet.
