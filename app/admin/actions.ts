@@ -9,6 +9,7 @@
 import { revalidatePath } from "next/cache";
 import {
   createRelease,
+  deleteRelease,
   getReleaseById,
   updateRelease,
   type CreateReleaseInput,
@@ -91,6 +92,31 @@ export async function updateReleaseAction(
     return { ok: true };
   } catch (e) {
     return { ok: false, error: supabaseErrorMessage(e, "Failed to update release") };
+  }
+}
+
+export type DeleteReleaseResult = { ok: true } | { ok: false; error: string };
+
+export async function deleteReleaseAction(
+  formData: FormData
+): Promise<DeleteReleaseResult> {
+  try {
+    const id = (formData.get("release_id") as string)?.trim();
+    if (!id) return { ok: false, error: "Missing release" };
+
+    const release = await getReleaseById(id);
+    if (!release) return { ok: false, error: "Release not found" };
+
+    await deleteRelease(id);
+
+    revalidatePath("/admin/releases");
+    revalidatePath("/admin/releases/new");
+    revalidatePath("/admin/polishes");
+    revalidatePath(`/admin/releases/${id}`);
+    revalidatePath(`/admin/releases/${id}/swatchers`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: supabaseErrorMessage(e, "Failed to delete release") };
   }
 }
 

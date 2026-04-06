@@ -4,7 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Release, ReleaseStatus } from "@/types/admin";
 import { RELEASE_STATUSES } from "@/types/admin";
-import { createReleaseAction, updateReleaseAction } from "@/app/admin/actions";
+import {
+  createReleaseAction,
+  deleteReleaseAction,
+  updateReleaseAction,
+} from "@/app/admin/actions";
 
 const STATUS_LABELS: Record<string, string> = {
   concept: "Concept",
@@ -54,20 +58,47 @@ export function ReleaseForm({ release, mode }: ReleaseFormProps) {
     }
   }
 
+  async function handleDelete() {
+    if (
+      !release ||
+      !window.confirm(
+        `Delete “${release.name}”? All polishes and recipes under this release will be removed. Finished inventory linked to this release will keep stock but lose the release link. This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setPending(true);
+    try {
+      const fd = new FormData();
+      fd.set("release_id", release.id);
+      const result = await deleteReleaseAction(fd);
+      if (result.ok) {
+        router.push("/admin/releases");
+        router.refresh();
+      } else {
+        setError(result.error);
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
-    <form
-      id="release-form"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        await handleSubmit(new FormData(e.currentTarget));
-      }}
-      className="space-y-4"
-    >
+    <div className="space-y-4">
       {error && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
           {error}
         </div>
       )}
+      <form
+        id="release-form"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          await handleSubmit(new FormData(e.currentTarget));
+        }}
+        className="space-y-4"
+      >
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-ink mb-1">
           Name *
@@ -155,11 +186,29 @@ export function ReleaseForm({ release, mode }: ReleaseFormProps) {
         <button
           type="submit"
           disabled={pending}
-          className="px-4 py-2 bg-teal text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+          className="px-4 py-2 min-h-[44px] bg-teal text-white rounded-lg hover:opacity-90 disabled:opacity-50"
         >
           {pending ? "Saving…" : mode === "create" ? "Create" : "Save"}
         </button>
       </div>
-    </form>
+      </form>
+
+    {mode === "edit" && release && (
+      <div className="pt-4 border-t border-ink/10">
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={pending}
+          className="px-4 py-2 min-h-[44px] border border-red-200 text-red-700 rounded-lg hover:bg-red-50 disabled:opacity-50 text-sm"
+        >
+          Delete collection / release
+        </button>
+        <p className="mt-2 text-xs text-ink/50 max-w-lg">
+          Deletes this release and every polish (and recipe) tied to it. Inventory items only clear their
+          release link.
+        </p>
+      </div>
+    )}
+    </div>
   );
 }

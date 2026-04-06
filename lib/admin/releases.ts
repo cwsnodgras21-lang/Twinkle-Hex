@@ -103,6 +103,13 @@ export async function updateRelease(
   return mapRow(data);
 }
 
+/** Deletes the release row. Polishes (and recipe lines) cascade; finished inventory loses release_id. */
+export async function deleteRelease(id: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("releases").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export function getReleaseStatuses(): ReleaseStatus[] {
   return [...RELEASE_STATUSES] as ReleaseStatus[];
 }
