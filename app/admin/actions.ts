@@ -15,13 +15,10 @@ import {
 } from "@/lib/admin/releases";
 import { createFinishedInventoryItem } from "@/lib/admin/inventory";
 import {
-  createRecipeLine,
   createReleasePolish,
-  deleteRecipeLine,
   deleteReleasePolish,
   getPolishById,
-  getPolishDetail,
-  updateRecipeLine,
+  replacePolishRecipeLines,
   updateReleasePolish,
 } from "@/lib/admin/polishes";
 
@@ -180,6 +177,7 @@ export async function createReleasePolishAction(
 
     revalidatePath(`/admin/releases/${releaseId}`);
     revalidatePath(`/admin/releases/${releaseId}/polishes/new`);
+    revalidatePath("/admin/polishes");
     return { ok: true, id: row.id };
   } catch (e) {
     return { ok: false, error: supabaseErrorMessage(e, "Failed to create polish") };
@@ -215,6 +213,7 @@ export async function updateReleasePolishAction(
 
     revalidatePath(`/admin/releases/${releaseId}`);
     revalidatePath(`/admin/releases/${releaseId}/polishes/${polishId}`);
+    revalidatePath("/admin/polishes");
     return { ok: true };
   } catch (e) {
     return { ok: false, error: supabaseErrorMessage(e, "Failed to update polish") };
@@ -240,15 +239,23 @@ export async function deleteReleasePolishAction(
 
     revalidatePath(`/admin/releases/${releaseId}`);
     revalidatePath(`/admin/releases/${releaseId}/polishes/${polishId}`);
+    revalidatePath("/admin/polishes");
     return { ok: true };
   } catch (e) {
     return { ok: false, error: supabaseErrorMessage(e, "Failed to delete polish") };
   }
 }
 
-export type RecipeLineResult = { ok: true } | { ok: false; error: string };
+export type ReplacePolishRecipeResult = { ok: true } | { ok: false; error: string };
 
-export async function createRecipeLineAction(formData: FormData): Promise<RecipeLineResult> {
+const MAX_RECIPE_LINES = 200;
+
+/**
+ * Replace the entire recipe in one save (validated JSON array in form body).
+ */
+export async function replacePolishRecipeAction(
+  formData: FormData
+): Promise<ReplacePolishRecipeResult> {
   try {
     const releaseId = (formData.get("release_id") as string)?.trim();
     const polishId = (formData.get("polish_id") as string)?.trim();
@@ -259,85 +266,46 @@ export async function createRecipeLineAction(formData: FormData): Promise<Recipe
       return { ok: false, error: "Polish not found for this release" };
     }
 
-    const ingredient_name = (formData.get("ingredient_name") as string)?.trim();
-    if (!ingredient_name) return { ok: false, error: "Ingredient name is required" };
-
-    const ozRaw = formData.get("amount_oz");
-    const amount_oz = ozRaw === "" || ozRaw == null ? NaN : Number(ozRaw);
-    if (Number.isNaN(amount_oz) || amount_oz < 0) {
-      return { ok: false, error: "Amount (oz) must be a number ≥ 0" };
+    const raw = formData.get("recipe_json") as string;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw ?? "[]");
+    } catch {
+      return { ok: false, error: "Invalid recipe data" };
     }
 
-    await createRecipeLine(polishId, { ingredient_name, amount_oz });
+    if (!Array.isArray(parsed)) {
+      return { ok: false, error: "Recipe must be a list" };
+    }
+    if (parsed.length > MAX_RECIPE_LINES) {
+      return { ok: false, error: `At most ${MAX_RECIPE_LINES} ingredients allowed` };
+    }
+
+    const lines: { ingredient_name: string; amount_oz: number }[] = [];
+    for (let i = 0; i < parsed.length; i++) {
+      const item = parsed[i];
+      if (!item || typeof item !== "object") {
+        return { ok: false, error: `Invalid row ${i + 1}` };
+      }
+      const o = item as Record<string, unknown>;
+      const ingredient_name = String(o.ingredient_name ?? "").trim();
+      const amount_oz = Number(o.amount_oz);
+      if (!ingredient_name) {
+        return { ok: false, error: `Row ${i + 1}: ingredient name is required` };
+      }
+      if (Number.isNaN(amount_oz) || amount_oz < 0) {
+        return { ok: false, error: `Row ${i + 1}: amount (oz) must be a number ≥ 0` };
+      }
+      lines.push({ ingredient_name, amount_oz });
+    }
+
+    await replacePolishRecipeLines(polishId, lines);
 
     revalidatePath(`/admin/releases/${releaseId}/polishes/${polishId}`);
     revalidatePath(`/admin/releases/${releaseId}`);
+    revalidatePath("/admin/polishes");
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: supabaseErrorMessage(e, "Failed to add ingredient") };
-  }
-}
-
-export async function updateRecipeLineAction(formData: FormData): Promise<RecipeLineResult> {
-  try {
-    const releaseId = (formData.get("release_id") as string)?.trim();
-    const polishId = (formData.get("polish_id") as string)?.trim();
-    const lineId = (formData.get("line_id") as string)?.trim();
-    if (!releaseId || !polishId || !lineId) {
-      return { ok: false, error: "Missing ids" };
-    }
-
-    const detail = await getPolishDetail(polishId, releaseId);
-    if (!detail) return { ok: false, error: "Polish not found" };
-    const line = detail.lines.find((l) => l.id === lineId);
-    if (!line) return { ok: false, error: "Ingredient line not found" };
-
-    const ingredient_name = (formData.get("ingredient_name") as string)?.trim();
-    if (!ingredient_name) return { ok: false, error: "Ingredient name is required" };
-
-    const ozRaw = formData.get("amount_oz");
-    const amount_oz = ozRaw === "" || ozRaw == null ? NaN : Number(ozRaw);
-    if (Number.isNaN(amount_oz) || amount_oz < 0) {
-      return { ok: false, error: "Amount (oz) must be a number ≥ 0" };
-    }
-
-    const sortRaw = formData.get("sort_order");
-    const sort_order =
-      sortRaw === "" || sortRaw == null ? line.sort_order : Number(sortRaw);
-    if (Number.isNaN(sort_order)) {
-      return { ok: false, error: "Sort order must be a number" };
-    }
-
-    await updateRecipeLine(lineId, { ingredient_name, amount_oz, sort_order });
-
-    revalidatePath(`/admin/releases/${releaseId}/polishes/${polishId}`);
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: supabaseErrorMessage(e, "Failed to update ingredient") };
-  }
-}
-
-export async function deleteRecipeLineAction(formData: FormData): Promise<RecipeLineResult> {
-  try {
-    const releaseId = (formData.get("release_id") as string)?.trim();
-    const polishId = (formData.get("polish_id") as string)?.trim();
-    const lineId = (formData.get("line_id") as string)?.trim();
-    if (!releaseId || !polishId || !lineId) {
-      return { ok: false, error: "Missing ids" };
-    }
-
-    const detail = await getPolishDetail(polishId, releaseId);
-    if (!detail) return { ok: false, error: "Polish not found" };
-    if (!detail.lines.some((l) => l.id === lineId)) {
-      return { ok: false, error: "Ingredient line not found" };
-    }
-
-    await deleteRecipeLine(lineId);
-
-    revalidatePath(`/admin/releases/${releaseId}/polishes/${polishId}`);
-    revalidatePath(`/admin/releases/${releaseId}`);
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: supabaseErrorMessage(e, "Failed to remove ingredient") };
+    return { ok: false, error: supabaseErrorMessage(e, "Failed to save recipe") };
   }
 }

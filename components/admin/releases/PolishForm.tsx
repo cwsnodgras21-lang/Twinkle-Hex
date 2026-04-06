@@ -13,9 +13,13 @@ interface PolishFormProps {
   releaseId: string;
   polish?: ReleasePolish | null;
   mode: "create" | "edit";
+  /** Called after a successful save in edit mode (e.g. close read/edit panel). */
+  onSaved?: () => void;
+  /** Shown next to Save in edit mode; discards without saving. */
+  onCancel?: () => void;
 }
 
-export function PolishForm({ releaseId, polish, mode }: PolishFormProps) {
+export function PolishForm({ releaseId, polish, mode, onSaved, onCancel }: PolishFormProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -35,6 +39,7 @@ export function PolishForm({ releaseId, polish, mode }: PolishFormProps) {
       } else if (polish) {
         const result = await updateReleasePolishAction(formData);
         if (result.ok) {
+          onSaved?.();
           router.refresh();
         } else {
           setError(result.error);
@@ -118,6 +123,16 @@ export function PolishForm({ releaseId, polish, mode }: PolishFormProps) {
           >
             {pending ? "Saving…" : mode === "create" ? "Create polish" : "Save"}
           </button>
+          {mode === "edit" && onCancel && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={onCancel}
+              className="px-4 py-2 min-h-[44px] border border-ink/20 rounded-lg hover:bg-ink/5 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          )}
         </div>
       </form>
 

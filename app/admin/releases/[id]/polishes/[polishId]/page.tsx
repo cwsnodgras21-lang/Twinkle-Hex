@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AdminPageShell, FormShell } from "@/components/admin";
-import { PolishForm, RecipeLinesEditor } from "@/components/admin/releases";
+import { AdminPageShell } from "@/components/admin";
+import { PolishDetailPanels } from "@/components/admin/releases";
 import { getPolishDetail } from "@/lib/admin/polishes";
 
 interface Props {
@@ -16,7 +16,10 @@ export default async function PolishDetailPage({ params }: Props) {
   const { polish, release, lines } = detail;
 
   return (
-    <AdminPageShell title={polish.name} description="Edit polish and recipe (ounces).">
+    <AdminPageShell
+      title={polish.name}
+      description="Read-only view by default — use Edit or Edit recipe to make changes."
+    >
       <div className="mb-6">
         <Link
           href={`/admin/releases/${releaseId}`}
@@ -39,15 +42,7 @@ export default async function PolishDetailPage({ params }: Props) {
         ) : null}
       </div>
 
-      <div className="space-y-8">
-        <FormShell title="Polish details" description="Name and sort order on the release list.">
-          <PolishForm releaseId={releaseId} polish={polish} mode="edit" />
-        </FormShell>
-
-        <FormShell title="Recipe" description="Ingredients and amounts in ounces.">
-          <RecipeLinesEditor releaseId={releaseId} polishId={polish.id} lines={lines} />
-        </FormShell>
-      </div>
+      <PolishDetailPanels releaseId={releaseId} polish={polish} lines={lines} />
     </AdminPageShell>
   );
 }

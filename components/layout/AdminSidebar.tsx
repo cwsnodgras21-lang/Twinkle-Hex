@@ -4,11 +4,38 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAdminLayout } from "@/components/admin/AdminLayoutContext";
 
+type NavItem = {
+  href: string;
+  label: string;
+  /** When set, controls active state (e.g. avoid highlighting Releases on polish recipe URLs). */
+  isActive?: (pathname: string) => boolean;
+};
+
+function defaultNavActive(href: string, pathname: string): boolean {
+  if (pathname === href) return true;
+  if (href === "/admin") return pathname === "/admin";
+  return pathname.startsWith(`${href}/`);
+}
+
+/** Release list/detail only — not /admin/releases/:id/polishes/... */
+function isReleasesNavActive(pathname: string): boolean {
+  if (pathname === "/admin/releases") return true;
+  if (!pathname.startsWith("/admin/releases/")) return false;
+  return !pathname.includes("/polishes/");
+}
+
+/** Polishes index + any polish/recipe page under a release */
+function isPolishesNavActive(pathname: string): boolean {
+  if (pathname === "/admin/polishes") return true;
+  if (pathname.startsWith("/admin/polishes/")) return true;
+  return /\/admin\/releases\/[^/]+\/polishes(\/|$)/.test(pathname);
+}
+
 /**
  * Admin sidebar with grouped navigation.
  * Future: requireAdmin() guard, collapse sections on mobile.
  */
-const adminNavGroups = [
+const adminNavGroups: { label: string; items: NavItem[] }[] = [
   {
     label: "Overview",
     items: [{ href: "/admin", label: "Dashboard" }],
@@ -33,7 +60,8 @@ const adminNavGroups = [
     label: "Production",
     items: [
       { href: "/admin/batches", label: "Batches" },
-      { href: "/admin/releases", label: "Releases" },
+      { href: "/admin/releases", label: "Releases", isActive: isReleasesNavActive },
+      { href: "/admin/polishes", label: "Polishes", isActive: isPolishesNavActive },
       { href: "/admin/swatchers", label: "Swatchers" },
     ],
   },
@@ -74,8 +102,9 @@ export function AdminSidebar() {
           </p>
           <ul className="space-y-1">
             {group.items.map((item) => {
-              const isActive =
-                pathname === item.href || pathname.startsWith(item.href + "/");
+              const isActive = item.isActive
+                ? item.isActive(pathname)
+                : defaultNavActive(item.href, pathname);
               return (
                 <li key={item.href}>
                   <Link
