@@ -3,7 +3,17 @@ import { AdminPageShell, TableShell, StatusBadge, EmptyState } from "@/component
 import { listBatches } from "@/lib/admin/batches";
 
 export default async function AdminBatchesPage() {
-  const batches = await listBatches();
+  let batches: Awaited<ReturnType<typeof listBatches>> = [];
+  let loadError: string | null = null;
+
+  try {
+    batches = await listBatches();
+  } catch (error) {
+    loadError =
+      error instanceof Error
+        ? error.message
+        : "Could not load batches. Check that the Supabase batches table includes the expected columns.";
+  }
 
   return (
     <AdminPageShell
@@ -18,10 +28,15 @@ export default async function AdminBatchesPage() {
         </Link>
       }
     >
+      {loadError && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
+          {loadError}
+        </div>
+      )}
       <div className="bg-white border border-ink/10 rounded-lg overflow-hidden">
         <TableShell
           headers={["Batch #", "Status", "Planned", "Quantity", "Product"]}
-          empty={batches.length === 0}
+          empty={batches.length === 0 && !loadError}
           emptyContent={
             <EmptyState
               title="No batches yet"
