@@ -14,7 +14,12 @@ function mapRow(row: Record<string, unknown>): Ingredient {
     supplier: (row.supplier as string) ?? undefined,
     unit: (row.unit as string) ?? "g",
     quantity_on_hand: Number(row.quantity_on_hand ?? 0),
-    reorder_point: row.reorder_point != null ? Number(row.reorder_point) : undefined,
+    reorder_point:
+      row.reorder_point != null
+        ? Number(row.reorder_point)
+        : row.low_stock_threshold != null
+          ? Number(row.low_stock_threshold)
+          : undefined,
     notes: (row.notes as string) ?? undefined,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
@@ -62,7 +67,7 @@ export async function createIngredient(
       supplier: data.supplier ?? null,
       unit: data.unit ?? "g",
       quantity_on_hand: data.quantity_on_hand ?? 0,
-      reorder_point: data.reorder_point ?? null,
+      low_stock_threshold: data.reorder_point ?? null,
       notes: data.notes ?? null,
     })
     .select()
@@ -94,7 +99,9 @@ export async function updateIngredient(
       ...(data.supplier !== undefined && { supplier: data.supplier }),
       ...(data.unit !== undefined && { unit: data.unit }),
       ...(data.quantity_on_hand !== undefined && { quantity_on_hand: data.quantity_on_hand }),
-      ...(data.reorder_point !== undefined && { reorder_point: data.reorder_point }),
+      ...(data.reorder_point !== undefined && {
+        low_stock_threshold: data.reorder_point,
+      }),
       ...(data.notes !== undefined && { notes: data.notes }),
     })
     .eq("id", id)

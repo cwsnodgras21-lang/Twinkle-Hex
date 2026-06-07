@@ -67,6 +67,7 @@ export async function createBatch(input: CreateBatchInput): Promise<Batch> {
   const { data, error } = await supabase
     .from("batches")
     .insert({
+      name: input.batch_number,
       batch_number: input.batch_number,
       product_id: input.product_id ?? null,
       status: input.status ?? "planned",
