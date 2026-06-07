@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminPageShell, FormShell } from "@/components/admin";
+import { SupplyForm } from "@/components/admin/supplies/SupplyForm";
 import { getSupplyById } from "@/lib/admin/supplies";
 
 interface Props {
@@ -37,34 +38,7 @@ export default async function EditSupplyPage({ params }: Props) {
           </>
         }
       >
-        <form id="supply-form" className="space-y-4">
-          <input type="hidden" name="id" value={supply.id} />
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-ink mb-1">
-              Name
-            </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              defaultValue={supply.name}
-              className="w-full border border-ink/20 rounded-lg px-3 py-2"
-            />
-          </div>
-          <div>
-            <label htmlFor="quantity" className="block text-sm font-medium text-ink mb-1">
-              Quantity on hand
-            </label>
-            <input
-              id="quantity"
-              name="quantity"
-              type="number"
-              min="0"
-              defaultValue={supply.quantity_on_hand}
-              className="w-full border border-ink/20 rounded-lg px-3 py-2"
-            />
-          </div>
-        </form>
+        <SupplyForm supply={supply} mode="edit" />
       </FormShell>
     </AdminPageShell>
   );

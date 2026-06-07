@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminPageShell, FormShell } from "@/components/admin";
+import { SocialPostForm } from "@/components/admin/social/SocialPostForm";
 
 export default function NewSocialPostPage() {
   return (
@@ -27,34 +28,7 @@ export default function NewSocialPostPage() {
           </>
         }
       >
-        <form id="social-form" className="space-y-4">
-          <div>
-            <label htmlFor="platform" className="block text-sm font-medium text-ink mb-1">
-              Platform
-            </label>
-            <select
-              id="platform"
-              name="platform"
-              className="w-full border border-ink/20 rounded-lg px-3 py-2"
-            >
-              <option value="instagram">Instagram</option>
-              <option value="tiktok">TikTok</option>
-              <option value="twitter">Twitter</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="scheduled_at" className="block text-sm font-medium text-ink mb-1">
-              Scheduled at
-            </label>
-            <input
-              id="scheduled_at"
-              name="scheduled_at"
-              type="datetime-local"
-              className="w-full border border-ink/20 rounded-lg px-3 py-2"
-            />
-          </div>
-        </form>
+        <SocialPostForm mode="create" />
       </FormShell>
     </AdminPageShell>
   );

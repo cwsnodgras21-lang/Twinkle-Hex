@@ -2,6 +2,7 @@
  * Finished inventory items — Supabase data layer.
  */
 
+import { createAdminClient } from "@/supabase/admin";
 import { createClient } from "@/supabase/server";
 import type { FinishedInventoryItem } from "@/types/admin";
 
@@ -42,7 +43,9 @@ export type CreateFinishedInventoryItemInput = Omit<
 export async function createFinishedInventoryItem(
   input: CreateFinishedInventoryItemInput
 ): Promise<FinishedInventoryItem> {
-  const supabase = await createClient();
+  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createAdminClient()
+    : await createClient();
   const { data, error } = await supabase
     .from("finished_inventory_items")
     .insert({

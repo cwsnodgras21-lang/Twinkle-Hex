@@ -2,13 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Release, ReleaseStatus } from "@/types/admin";
+import type { Release } from "@/types/admin";
 import { RELEASE_STATUSES } from "@/types/admin";
 import {
   createReleaseAction,
   deleteReleaseAction,
   updateReleaseAction,
 } from "@/app/admin/actions";
+import { getErrorMessage } from "@/lib/errors";
 
 const STATUS_LABELS: Record<string, string> = {
   concept: "Concept",
@@ -53,6 +54,8 @@ export function ReleaseForm({ release, mode }: ReleaseFormProps) {
           setError(result.error);
         }
       }
+    } catch (error) {
+      setError(getErrorMessage(error));
     } finally {
       setPending(false);
     }
@@ -79,6 +82,8 @@ export function ReleaseForm({ release, mode }: ReleaseFormProps) {
       } else {
         setError(result.error);
       }
+    } catch (error) {
+      setError(getErrorMessage(error));
     } finally {
       setPending(false);
     }

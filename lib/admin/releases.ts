@@ -3,6 +3,7 @@
  */
 
 import { createClient } from "@/supabase/server";
+import { createAdminClient } from "@/supabase/admin";
 import type { Release, ReleaseStatus } from "@/types/admin";
 import { RELEASE_STATUSES } from "@/types/admin";
 
@@ -58,7 +59,9 @@ export type CreateReleaseInput = Omit<
 >;
 
 export async function createRelease(input: CreateReleaseInput): Promise<Release> {
-  const supabase = await createClient();
+  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createAdminClient()
+    : await createClient();
   const { data, error } = await supabase
     .from("releases")
     .insert({
@@ -80,7 +83,9 @@ export async function updateRelease(
   id: string,
   input: Partial<CreateReleaseInput>
 ): Promise<Release> {
-  const supabase = await createClient();
+  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createAdminClient()
+    : await createClient();
   const { data, error } = await supabase
     .from("releases")
     .update({
