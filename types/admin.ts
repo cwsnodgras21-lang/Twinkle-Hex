@@ -18,6 +18,32 @@ export interface Ingredient {
   updated_at: string;
 }
 
+// --- Pigments (colorants with MSDS attachments) ---
+export interface Pigment {
+  id: string;
+  name: string;
+  sku?: string;
+  supplier?: string;
+  color_description?: string;
+  unit: string;
+  quantity_on_hand: number;
+  reorder_point?: number;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PigmentMsdsDocument {
+  id: string;
+  pigment_id: string;
+  file_name: string;
+  storage_path: string;
+  file_size?: number;
+  mime_type: string;
+  notes?: string;
+  uploaded_at: string;
+}
+
 // --- Supplies (packaging, labels, misc) ---
 export interface Supply {
   id: string;

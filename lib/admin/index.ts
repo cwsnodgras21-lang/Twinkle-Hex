@@ -2,6 +2,7 @@
  * Admin data layer - export barrel.
  */
 export * from "./ingredients";
+export * from "./pigments";
 export * from "./supplies";
 export * from "./batches";
 export * from "./releases";

@@ -53,6 +53,7 @@ const adminNavGroups: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin/inventory", label: "Finished Goods" },
       { href: "/admin/ingredients", label: "Ingredients" },
+      { href: "/admin/pigments", label: "Pigments" },
       { href: "/admin/supplies", label: "Supplies" },
     ],
   },

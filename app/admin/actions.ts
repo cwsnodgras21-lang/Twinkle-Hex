@@ -22,6 +22,13 @@ import {
 } from "@/lib/admin/polishes";
 import { createIngredient, updateIngredient } from "@/lib/admin/ingredients";
 import { createSupply, updateSupply } from "@/lib/admin/supplies";
+import {
+  createPigment,
+  deletePigmentMsdsDocument,
+  getPigmentMsdsSignedUrl,
+  updatePigment,
+  uploadPigmentMsdsDocument,
+} from "@/lib/admin/pigments";
 import { createSocialPost, updateSocialPost } from "@/lib/admin/social";
 import { createBatch, updateBatch } from "@/lib/admin/batches";
 import { createSwatcher, createAssignment, updateSwatcher } from "@/lib/admin/swatchers";
@@ -243,6 +250,121 @@ export async function updateSupplyAction(
   } catch (e) {
     const message = getErrorMessage(e, "Failed to update supply");
     console.error("updateSupplyAction failed", { id, message, error: e });
+    return { ok: false, error: message };
+  }
+}
+
+export type CreatePigmentResult = { ok: true; id: string } | { ok: false; error: string };
+
+export async function createPigmentAction(formData: FormData): Promise<CreatePigmentResult> {
+  try {
+    const name = (formData.get("name") as string)?.trim();
+    if (!name) return { ok: false, error: "Name is required" };
+
+    const quantityRaw = (formData.get("quantity_on_hand") as string)?.trim();
+    const reorderRaw = (formData.get("reorder_point") as string)?.trim();
+
+    const pigment = await createPigment({
+      name,
+      sku: trimOrNull(formData.get("sku")) ?? undefined,
+      supplier: trimOrNull(formData.get("supplier")) ?? undefined,
+      color_description: trimOrNull(formData.get("color_description")) ?? undefined,
+      unit: (formData.get("unit") as string)?.trim() || "g",
+      quantity_on_hand: quantityRaw ? Number(quantityRaw) : 0,
+      reorder_point: reorderRaw ? Number(reorderRaw) : undefined,
+      notes: trimOrNull(formData.get("notes")) ?? undefined,
+    });
+
+    revalidatePath("/admin/pigments");
+    revalidatePath("/admin/pigments/new");
+    return { ok: true, id: pigment.id };
+  } catch (e) {
+    const message = getErrorMessage(e, "Failed to create pigment");
+    console.error("createPigmentAction failed", { message, error: e });
+    return { ok: false, error: message };
+  }
+}
+
+export async function updatePigmentAction(id: string, formData: FormData): Promise<ActionResult> {
+  try {
+    const quantityRaw = (formData.get("quantity_on_hand") as string)?.trim();
+    const reorderRaw = (formData.get("reorder_point") as string)?.trim();
+
+    await updatePigment(id, {
+      name: trimOrNull(formData.get("name")) ?? undefined,
+      sku: trimOrNull(formData.get("sku")),
+      supplier: trimOrNull(formData.get("supplier")),
+      color_description: trimOrNull(formData.get("color_description")),
+      unit: (formData.get("unit") as string)?.trim() || "g",
+      quantity_on_hand: quantityRaw ? Number(quantityRaw) : 0,
+      reorder_point: reorderRaw ? Number(reorderRaw) : null,
+      notes: trimOrNull(formData.get("notes")),
+    });
+
+    revalidatePath("/admin/pigments");
+    revalidatePath(`/admin/pigments/${id}`);
+    return { ok: true };
+  } catch (e) {
+    const message = getErrorMessage(e, "Failed to update pigment");
+    console.error("updatePigmentAction failed", { id, message, error: e });
+    return { ok: false, error: message };
+  }
+}
+
+export type UploadMsdsResult = { ok: true; id: string } | { ok: false; error: string };
+
+export async function uploadPigmentMsdsAction(
+  pigmentId: string,
+  formData: FormData
+): Promise<UploadMsdsResult> {
+  try {
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size === 0) {
+      return { ok: false, error: "Please choose a PDF file to upload" };
+    }
+
+    const doc = await uploadPigmentMsdsDocument(
+      pigmentId,
+      file,
+      trimOrNull(formData.get("notes")) ?? undefined
+    );
+
+    revalidatePath("/admin/pigments");
+    revalidatePath(`/admin/pigments/${pigmentId}`);
+    return { ok: true, id: doc.id };
+  } catch (e) {
+    const message = getErrorMessage(e, "Failed to upload MSDS sheet");
+    console.error("uploadPigmentMsdsAction failed", { pigmentId, message, error: e });
+    return { ok: false, error: message };
+  }
+}
+
+export async function deletePigmentMsdsAction(
+  pigmentId: string,
+  documentId: string
+): Promise<ActionResult> {
+  try {
+    await deletePigmentMsdsDocument(documentId);
+    revalidatePath("/admin/pigments");
+    revalidatePath(`/admin/pigments/${pigmentId}`);
+    return { ok: true };
+  } catch (e) {
+    const message = getErrorMessage(e, "Failed to delete MSDS sheet");
+    console.error("deletePigmentMsdsAction failed", { pigmentId, documentId, message, error: e });
+    return { ok: false, error: message };
+  }
+}
+
+export type MsdsDownloadResult = { ok: true; url: string } | { ok: false; error: string };
+
+export async function getPigmentMsdsDownloadUrlAction(
+  documentId: string
+): Promise<MsdsDownloadResult> {
+  try {
+    const url = await getPigmentMsdsSignedUrl(documentId);
+    return { ok: true, url };
+  } catch (e) {
+    const message = getErrorMessage(e, "Failed to open MSDS sheet");
     return { ok: false, error: message };
   }
 }
