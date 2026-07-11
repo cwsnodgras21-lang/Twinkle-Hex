@@ -63,6 +63,10 @@ DROP POLICY IF EXISTS "msds_sheets_admin_mvp_select" ON storage.objects;
 DROP POLICY IF EXISTS "msds_sheets_admin_mvp_insert" ON storage.objects;
 DROP POLICY IF EXISTS "msds_sheets_admin_mvp_update" ON storage.objects;
 DROP POLICY IF EXISTS "msds_sheets_admin_mvp_delete" ON storage.objects;
+DROP POLICY IF EXISTS "msds_sheets_admin_only_select" ON storage.objects;
+DROP POLICY IF EXISTS "msds_sheets_admin_only_insert" ON storage.objects;
+DROP POLICY IF EXISTS "msds_sheets_admin_only_update" ON storage.objects;
+DROP POLICY IF EXISTS "msds_sheets_admin_only_delete" ON storage.objects;
 
 CREATE POLICY "msds_sheets_admin_only_select"
   ON storage.objects
