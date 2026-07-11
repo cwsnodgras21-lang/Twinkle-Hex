@@ -1,16 +1,21 @@
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { AdminLayoutProvider } from "@/components/admin/AdminLayoutContext";
-// Future: await requireAdmin() when auth is wired - redirect to /login if not admin
+import { requireAdminOrRedirect } from "@/lib/auth/roles";
 
 /**
  * Admin layout with sidebar navigation.
- * Future: Add auth guard via requireAdmin(), role-based access control.
+ * Auth is enforced twice: middleware.ts redirects unauthenticated/non-admin
+ * requests before they reach this layout, and requireAdminOrRedirect() below
+ * re-checks at render time as defense in depth (e.g. cached pages, direct
+ * server-action invocations).
  */
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await requireAdminOrRedirect();
+
   return (
     <AdminLayoutProvider>
       <div className="flex min-h-screen">

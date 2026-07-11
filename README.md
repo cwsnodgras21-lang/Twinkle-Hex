@@ -77,8 +77,31 @@ Production-ready web platform for an indie nail polish brand. Built with Next.js
 |----------|----------|-------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous (public) key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-only key used for admin writes and MSDS storage. **Never** expose this to the browser. |
 | `NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN` | Future | Shopify store domain |
 | `SHOPIFY_STOREFRONT_ACCESS_TOKEN` | Future | Shopify Storefront API token |
+
+## Admin Access
+
+`/admin` requires a signed-in Supabase user whose JWT carries an
+`app_metadata.role = "admin"` claim. `app_metadata` can only be written with
+the service-role key, so it can't be self-granted by a user - promote
+yourself in the Supabase SQL editor:
+
+```sql
+update auth.users
+set raw_app_meta_data = raw_app_meta_data || '{"role": "admin"}'::jsonb
+where email = 'you@example.com';
+```
+
+Then run the migration in `supabase/migrations/011_admin_role_rls.sql`
+against your project (SQL editor or CLI) - it locks every admin table's Row
+Level Security down to that claim, replacing the earlier MVP policies that
+allowed full read/write access to anyone holding the public anon key.
+
+Sign in at `/login`. There is no public self-serve signup for admin - create
+additional users via the Supabase dashboard (Authentication → Users → Invite)
+and promote them with the SQL above.
 
 ## Brand Palette
 

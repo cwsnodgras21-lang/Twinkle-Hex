@@ -1,12 +1,15 @@
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/supabase/middleware";
+import { isAdminRoute, isUserAdmin } from "@/lib/auth/admin-check";
 
 export async function middleware(request: NextRequest) {
-  // Refresh Supabase auth session
-  const response = await updateSession(request);
+  const { response, user } = await updateSession(request);
 
-  // Future: Add route protection for /admin, /account
-  // Future: Redirect unauthenticated users from protected routes
+  if (isAdminRoute(request.nextUrl.pathname) && !isUserAdmin(user)) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
+  }
 
   return response;
 }

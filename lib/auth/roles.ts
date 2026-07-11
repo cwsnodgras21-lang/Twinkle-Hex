@@ -1,30 +1,38 @@
-/**
- * Role-based access control placeholders.
- * Future: Define roles (admin, customer, moderator).
- * Future: Check user role before rendering admin routes.
- * Future: Integrate with Supabase RLS policies.
- */
+import "server-only";
+
+import type { User } from "@supabase/supabase-js";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "./helpers";
+import { isUserAdmin } from "./admin-check";
 
 export type UserRole = "admin" | "customer" | "moderator";
 
-// Placeholder - implement when auth + roles are defined
-// Where Supabase user metadata or profiles table will be queried
+export { isUserAdmin, isAdminRoute, ADMIN_ROUTES } from "./admin-check";
+
 export async function getUserRole(): Promise<UserRole | null> {
-  return null;
+  const user = await getCurrentUser();
+  const role = user?.app_metadata?.role;
+  return role === "admin" || role === "moderator" || role === "customer" ? role : null;
 }
 
-/** Admin-only routes - use in middleware to protect /admin/* */
-export const ADMIN_ROUTES = ["/admin"];
-
-/** Check if path is an admin route */
-export function isAdminRoute(pathname: string): boolean {
-  return pathname.startsWith("/admin");
-}
-
-/** Guard for admin-only access. Call at top of admin server actions/layout. */
-export async function requireAdmin(): Promise<void> {
-  const role = await getUserRole();
-  if (role !== "admin") {
+/**
+ * Guard for Server Actions / route handlers - throws rather than redirecting,
+ * since there's no navigation to perform mid-mutation. Callers that expect an
+ * { ok, error } result should catch this and surface it as a normal error.
+ */
+export async function requireAdmin(): Promise<User> {
+  const user = await getCurrentUser();
+  if (!isUserAdmin(user)) {
     throw new Error("Forbidden: admin access required");
   }
+  return user as User;
+}
+
+/** Guard for Server Components (layouts/pages) - redirects to /login instead of throwing. */
+export async function requireAdminOrRedirect(pathname = "/admin"): Promise<User> {
+  const user = await getCurrentUser();
+  if (!isUserAdmin(user)) {
+    redirect(`/login?redirect=${encodeURIComponent(pathname)}`);
+  }
+  return user as User;
 }

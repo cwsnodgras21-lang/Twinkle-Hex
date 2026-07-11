@@ -1,14 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAdminLayout } from "./AdminLayoutContext";
+import { useAuth } from "@/hooks/useAuth";
 
 /**
  * Admin top bar - mobile menu trigger, breadcrumbs, actions.
- * Future: User menu, notifications, search.
+ * Future: Breadcrumbs, search, notifications.
  */
 export function AdminTopbar() {
   const { setSidebarOpen } = useAdminLayout();
+  const { user, signOut } = useAuth();
+  const router = useRouter();
+
+  async function handleSignOut() {
+    await signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-ink/10">
@@ -28,13 +38,25 @@ export function AdminTopbar() {
         {/* Future: Breadcrumbs, page title */}
         <div className="flex-1 min-w-0" />
 
-        {/* Future: Search, notifications, user menu */}
-        <Link
-          href="/"
-          className="text-sm text-ink/70 hover:text-teal transition-colors"
-        >
-          View Store
-        </Link>
+        {/* Future: Search, notifications */}
+        <div className="flex items-center gap-4">
+          {user?.email && (
+            <span className="hidden sm:inline text-sm text-ink/60">{user.email}</span>
+          )}
+          <Link
+            href="/"
+            className="text-sm text-ink/70 hover:text-teal transition-colors"
+          >
+            View Store
+          </Link>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="text-sm text-ink/70 hover:text-teal transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
       </div>
     </header>
   );
