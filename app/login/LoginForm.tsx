@@ -19,17 +19,26 @@ export function LoginForm() {
     setLoading(true);
     setError(null);
 
-    const { error } = await signIn(email, password);
+    try {
+      const { error } = await signIn(email, password);
 
-    if (error) {
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      const redirectTo = searchParams.get("redirect") || "/admin";
+      router.push(redirectTo);
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong signing in. Please try again."
+      );
+    } finally {
       setLoading(false);
-      setError(error.message);
-      return;
     }
-
-    const redirectTo = searchParams.get("redirect") || "/admin";
-    router.push(redirectTo);
-    router.refresh();
   }
 
   return (
