@@ -20,9 +20,14 @@ export function LoginForm() {
     setError(null);
 
     try {
-      const { error } = await signIn(email, password);
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Sign-in request timed out after 10s")), 10000)
+      );
+
+      const { error } = await Promise.race([signIn(email, password), timeout]);
 
       if (error) {
+        console.error("Sign-in error:", error);
         setError(error.message);
         return;
       }
@@ -31,6 +36,7 @@ export function LoginForm() {
       router.push(redirectTo);
       router.refresh();
     } catch (err) {
+      console.error("Sign-in threw:", err);
       setError(
         err instanceof Error
           ? err.message
