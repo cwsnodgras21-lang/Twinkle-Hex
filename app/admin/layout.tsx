@@ -1,6 +1,13 @@
+import { Space_Grotesk } from "next/font/google";
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { AdminLayoutProvider } from "@/components/admin/AdminLayoutContext";
 import { requireAdminOrRedirect } from "@/lib/auth/roles";
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-space-grotesk",
+});
 
 /**
  * Admin layout with sidebar navigation.
@@ -18,7 +25,7 @@ export default async function AdminLayout({
 
   return (
     <AdminLayoutProvider>
-      <div className="flex min-h-screen">
+      <div className={`flex min-h-screen bg-dash-bg ${spaceGrotesk.variable}`}>
         <AdminSidebar />
         <div className="flex-1 overflow-auto min-w-0">
           {children}

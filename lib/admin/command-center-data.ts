@@ -8,10 +8,12 @@ import { listRdPrototypes } from "@/lib/admin/rd";
 import { isSwatcherShipmentOverdue, listSwatcherAssignments } from "@/lib/admin/swatchers";
 import { listRecentBatches } from "@/lib/admin/batches";
 import { listCalendarNotes } from "@/lib/admin/calendar-notes";
+import { listDailyTasks } from "@/lib/admin/daily-tasks";
 import { getOpsSettings } from "@/lib/admin/ops-settings";
 import { buildCommandCenter, type CommandCenterView } from "@/lib/ops/command-center";
 import { buildOpsCalendar, type CalendarEvent } from "@/lib/ops/calendar";
 import { todayDateString } from "@/lib/admin/supabase-write";
+import type { DailyTask } from "@/types/admin";
 
 function addDays(iso: string, days: number): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -147,6 +149,152 @@ export async function loadOpsCalendar(daysAhead = 90): Promise<CalendarEvent[]> 
       release_id: n.release_id,
     })),
   });
+}
+
+export type DashboardStat = {
+  value: string;
+  label: string;
+  sub: string;
+  tone: "pink" | "purple" | "danger" | "neutral";
+};
+
+export type DashboardMonth = { year: number; month: number; label: string };
+
+export type DashboardAtRiskItem = { name: string; detail: string; level: "HIGH" | "MEDIUM" };
+
+export type DashboardSwatcherRow = {
+  name: string;
+  collection: string;
+  due: string;
+  status: "Planned" | "Sent" | "Returned";
+};
+
+export type DashboardData = {
+  today: string;
+  stats: DashboardStat[];
+  atRisk: DashboardAtRiskItem[];
+  months: DashboardMonth[];
+  events: CalendarEvent[];
+  tasks: DailyTask[];
+  swatchers: DashboardSwatcherRow[];
+};
+
+const SWATCHER_STATUS_LABEL: Record<string, DashboardSwatcherRow["status"]> = {
+  planned: "Planned",
+  sent: "Sent",
+  returned: "Returned",
+};
+
+function formatShortDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+export async function loadDashboardData(today = todayDateString()): Promise<DashboardData> {
+  const cc = await loadCommandCenter(today);
+  const events = await loadOpsCalendar(97);
+
+  const [y, m] = today.split("-").map(Number);
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  const months: DashboardMonth[] = [0, 1, 2].map((offset) => {
+    const idx = m - 1 + offset;
+    const year = y + Math.floor(idx / 12);
+    const month = ((idx % 12) + 12) % 12;
+    return { year, month, label: monthNames[month] };
+  });
+
+  let batches: Awaited<ReturnType<typeof listRecentBatches>> = [];
+  let rd: Awaited<ReturnType<typeof listRdPrototypes>> = [];
+  let assignments: Awaited<ReturnType<typeof listSwatcherAssignments>> = [];
+  let tasks: DailyTask[] = [];
+  try {
+    batches = await listRecentBatches(200);
+  } catch {
+    /* empty */
+  }
+  try {
+    rd = await listRdPrototypes();
+  } catch {
+    /* empty */
+  }
+  try {
+    assignments = await listSwatcherAssignments();
+  } catch {
+    /* empty */
+  }
+  try {
+    tasks = await listDailyTasks(today, today);
+  } catch {
+    /* empty */
+  }
+
+  const inProductionCount = batches.filter((b) => b.status === "planned" || b.status === "in_progress").length;
+  const activeReleaseCount = cc.upcomingReleases.length;
+  const atRiskReleases = cc.upcomingReleases.filter((r) => r.atRisk);
+  const rdInProgress = rd.filter((p) => p.status === "in_progress");
+  const rdDueSoon = rdInProgress.filter((p) => p.review_date && p.review_date <= today).length;
+  const weekEnd = addDays(today, 6);
+  const weekTasks = tasks.filter((t) => t.item_date >= today && t.item_date <= weekEnd);
+  const weekTasksDone = weekTasks.filter((t) => t.done).length;
+
+  const stats: DashboardStat[] = [
+    {
+      value: String(inProductionCount),
+      label: "Polishes in production",
+      sub: `${batches.filter((b) => b.status === "completed").length} on track`,
+      tone: "pink",
+    },
+    {
+      value: String(activeReleaseCount),
+      label: "Active releases",
+      sub: `${cc.upcomingReleases.filter((r) => r.target_launch_date && r.target_launch_date <= addDays(today, 30)).length} this month`,
+      tone: "purple",
+    },
+    {
+      value: String(atRiskReleases.length),
+      label: "At risk",
+      sub: atRiskReleases.length > 0 ? "Needs attention" : "All clear",
+      tone: "danger",
+    },
+    {
+      value: String(rdInProgress.length),
+      label: "In the lab",
+      sub: `${rdDueSoon} ready to review`,
+      tone: "neutral",
+    },
+    {
+      value: String(weekTasks.length),
+      label: "Tasks this week",
+      sub: `${weekTasksDone} completed`,
+      tone: "neutral",
+    },
+  ];
+
+  const atRisk: DashboardAtRiskItem[] = atRiskReleases.map((r) => ({
+    name: r.name,
+    detail: r.riskReasons[0] ?? r.progressLabel,
+    level: r.riskReasons.length > 1 ? "HIGH" : "MEDIUM",
+  }));
+
+  const swatchers: DashboardSwatcherRow[] = assignments
+    .filter((a) => a.status !== "cancelled")
+    .sort((a, b) => (a.send_by ?? "9999") < (b.send_by ?? "9999") ? -1 : 1)
+    .slice(0, 6)
+    .map((a) => ({
+      name: a.swatcher_name ?? "Unknown swatcher",
+      collection: a.release_name ?? "—",
+      due: a.send_by ? formatShortDate(a.send_by) : "—",
+      status: SWATCHER_STATUS_LABEL[a.status] ?? "Planned",
+    }));
+
+  return { today, stats, atRisk, months, events, tasks, swatchers };
 }
 
 export async function loadSwatcherOverdueFlags(today = todayDateString()) {

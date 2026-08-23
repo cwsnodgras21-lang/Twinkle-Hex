@@ -27,6 +27,8 @@ import {
   updateSwatcherAssignment,
 } from "@/lib/admin/swatchers";
 import { createCalendarNote, deleteCalendarNote, toggleCalendarNoteDone } from "@/lib/admin/calendar-notes";
+import { createDailyTask, deleteDailyTask, toggleDailyTask } from "@/lib/admin/daily-tasks";
+import { todayDateString } from "@/lib/admin/supabase-write";
 import type { ReleasePolishProductionStatus, ReleaseStatus, RdPrototypeStatus } from "@/types/admin";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -356,5 +358,44 @@ export async function deleteCalendarNoteAction(id: string): Promise<ActionResult
     return { ok: true };
   } catch (e) {
     return { ok: false, error: getErrorMessage(e, "Failed to delete note") };
+  }
+}
+
+// --- Today's Plan (daily tasks) ---
+
+export async function createDailyTaskAction(formData: FormData): Promise<ActionResult> {
+  try {
+    const title = (formData.get("title") as string)?.trim();
+    if (!title) return { ok: false, error: "Title is required" };
+    await createDailyTask({
+      title,
+      tag: trimOrNull(formData.get("tag")),
+      time_label: trimOrNull(formData.get("time_label")),
+      item_date: trimOrNull(formData.get("item_date")) ?? todayDateString(),
+    });
+    revalidateOps();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to create task") };
+  }
+}
+
+export async function toggleDailyTaskAction(id: string, done: boolean): Promise<ActionResult> {
+  try {
+    await toggleDailyTask(id, done);
+    revalidateOps();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to update task") };
+  }
+}
+
+export async function deleteDailyTaskAction(id: string): Promise<ActionResult> {
+  try {
+    await deleteDailyTask(id);
+    revalidateOps();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to delete task") };
   }
 }
