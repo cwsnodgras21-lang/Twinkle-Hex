@@ -19,10 +19,14 @@ function isNavActive(href: string, pathname: string): boolean {
  * Minimal admin nav: the three questions this tool answers, plus Settings.
  */
 const adminNavItems: NavItem[] = [
-  { href: "/admin", label: "Dashboard", icon: "◆" },
-  { href: "/admin/inventory", label: "Finished Stock", icon: "●" },
-  { href: "/admin/ingredients", label: "Ingredients", icon: "◈" },
+  { href: "/admin", label: "Command Center", icon: "◆" },
+  { href: "/admin/releases", label: "Releases", icon: "▣" },
   { href: "/admin/polishes", label: "Polishes", icon: "◐" },
+  { href: "/admin/ingredients", label: "Ingredients", icon: "◈" },
+  { href: "/admin/rd", label: "R&D Lab", icon: "◇" },
+  { href: "/admin/swatchers", label: "Swatchers", icon: "○" },
+  { href: "/admin/calendar", label: "Calendar", icon: "▤" },
+  { href: "/admin/inventory", label: "Finished Stock", icon: "●" },
 ];
 
 export function AdminSidebar() {

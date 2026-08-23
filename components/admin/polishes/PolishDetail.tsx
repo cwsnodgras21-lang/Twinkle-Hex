@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import type { Polish, PolishRecipeLine } from "@/types/admin";
+import type { Polish, PolishRecipeLine, ProductionBatch } from "@/types/admin";
 import { FormShell } from "@/components/admin";
 import { PolishForm } from "./PolishForm";
 import { RecipeEditor } from "./RecipeEditor";
 import { PolishSwatch } from "./PolishSwatch";
+import { MakeBatchPanel } from "@/components/admin/batches/MakeBatchPanel";
 
 function formatOunces(oz: number): string {
   return `${new Intl.NumberFormat("en-US", {
@@ -17,6 +18,7 @@ function formatOunces(oz: number): string {
 interface PolishDetailProps {
   polish: Polish;
   lines: PolishRecipeLine[];
+  batches?: ProductionBatch[];
 }
 
 /**
@@ -24,7 +26,7 @@ interface PolishDetailProps {
  * route — because "what is this polish" and "how is it made" are the same
  * question in practice.
  */
-export function PolishDetail({ polish, lines }: PolishDetailProps) {
+export function PolishDetail({ polish, lines, batches = [] }: PolishDetailProps) {
   const [editingPolish, setEditingPolish] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(false);
   const totalOz = lines.reduce((sum, l) => sum + l.amount_oz, 0);
@@ -59,7 +61,9 @@ export function PolishDetail({ polish, lines }: PolishDetailProps) {
             <div>
               <p className="text-xl font-semibold text-ink leading-snug">{polish.name}</p>
               <p className="text-sm text-ink/60">
-                Sort order: {polish.sort_order}
+                Formula v{polish.formula_version}
+                {polish.is_core ? " · Core polish" : ""}
+                {" · "}Sort {polish.sort_order}
                 {polish.color_hex ? ` · ${polish.color_hex}` : ""}
               </p>
               {polish.notes && <p className="text-sm text-ink/70 mt-2 max-w-prose">{polish.notes}</p>}
@@ -72,9 +76,9 @@ export function PolishDetail({ polish, lines }: PolishDetailProps) {
         title="Recipe"
         description={
           editingRecipe
-            ? "Edit all ingredients, then save once. Amounts are in ounces."
+            ? "Edit all ingredients, then save once. Amounts are in ounces. Saving bumps the formula version."
             : lines.length > 0
-              ? `${lines.length} ingredient${lines.length === 1 ? "" : "s"} · ${formatOunces(totalOz)} total`
+              ? `${lines.length} ingredient${lines.length === 1 ? "" : "s"} · ${formatOunces(totalOz)} total · v${polish.formula_version}`
               : "Ingredients and how much of each (ounces)."
         }
         actions={
@@ -117,6 +121,40 @@ export function PolishDetail({ polish, lines }: PolishDetailProps) {
           </ul>
         )}
       </FormShell>
+
+      <FormShell
+        title="Make batch"
+        description={`Default 32 oz. Completing a batch freezes formula v${polish.formula_version}.`}
+      >
+        <MakeBatchPanel
+          polishId={polish.id}
+          polishName={polish.name}
+          formulaVersion={polish.formula_version}
+          lines={lines}
+        />
+      </FormShell>
+
+      {batches.length > 0 ? (
+        <FormShell
+          title="Batch history"
+          description="Completed and planned batches with frozen formula versions."
+        >
+          <ul className="divide-y divide-ink/10 border border-ink/10 rounded-lg overflow-hidden">
+            {batches.map((b) => (
+              <li key={b.id} className="px-4 py-3 text-sm flex flex-wrap justify-between gap-2">
+                <span className="text-ink">
+                  {b.batch_size_oz} oz · formula v{b.formula_version} · {b.status}
+                </span>
+                <span className="text-ink/50">
+                  {b.completed_at
+                    ? new Date(b.completed_at).toLocaleDateString()
+                    : b.planned_date ?? "—"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </FormShell>
+      ) : null}
     </div>
   );
 }

@@ -77,9 +77,19 @@ export async function createIngredientAction(formData: FormData): Promise<Create
     const ingredient = await createIngredient({
       name,
       category: parseCategory(formData),
+      lifecycle_status:
+        ((formData.get("lifecycle_status") as string)?.trim() as
+          | "tracked"
+          | "experimental"
+          | "approved"
+          | "rejected"
+          | "archived") || "tracked",
       sku: trimOrNull(formData.get("sku")) ?? undefined,
       supplier: trimOrNull(formData.get("supplier")) ?? undefined,
+      supplier_identifier: trimOrNull(formData.get("supplier_identifier")) ?? undefined,
       color_description: trimOrNull(formData.get("color_description")) ?? undefined,
+      received_date: trimOrNull(formData.get("received_date")) ?? undefined,
+      lot_number: trimOrNull(formData.get("lot_number")) ?? undefined,
       unit: (formData.get("unit") as string)?.trim() || "g",
       quantity_on_hand: quantityRaw ? Number(quantityRaw) : 0,
       reorder_point: reorderRaw ? Number(reorderRaw) : undefined,
@@ -104,9 +114,19 @@ export async function updateIngredientAction(id: string, formData: FormData): Pr
     await updateIngredient(id, {
       name: trimOrNull(formData.get("name")) ?? undefined,
       category: parseCategory(formData),
+      lifecycle_status:
+        ((formData.get("lifecycle_status") as string)?.trim() as
+          | "tracked"
+          | "experimental"
+          | "approved"
+          | "rejected"
+          | "archived") || undefined,
       sku: trimOrNull(formData.get("sku")),
       supplier: trimOrNull(formData.get("supplier")),
+      supplier_identifier: trimOrNull(formData.get("supplier_identifier")),
       color_description: trimOrNull(formData.get("color_description")),
+      received_date: trimOrNull(formData.get("received_date")),
+      lot_number: trimOrNull(formData.get("lot_number")),
       unit: (formData.get("unit") as string)?.trim() || "g",
       quantity_on_hand: quantityRaw ? Number(quantityRaw) : 0,
       reorder_point: reorderRaw ? Number(reorderRaw) : null,

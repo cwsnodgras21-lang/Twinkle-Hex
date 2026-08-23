@@ -1,0 +1,90 @@
+# Production Operating System — Architecture
+
+## What existed before
+
+Lean post-012 ops tool answering three questions: finished stock, ingredients
+(with SDS), and polish recipes. Releases, batches, and swatchers had been
+removed as organizational gravity.
+
+## What was wrong
+
+Tracey’s bottleneck is **lead time** (production → swatchers → marketing →
+launch), not warehouse inventory. The dashboard showed counts, not next actions.
+Recipes had no version history. R&D and experimental pigments had no gate.
+
+## Standards
+
+No in-repo NolTurn Factory canon. Work followed Organizational Gravity /
+reductive improvement from the product brief, plus existing Twinkle & Hex
+conventions (standalone polishes, unified ingredients, brand palette, admin RLS).
+
+**Conflict resolved:** Reintroduced releases/batches/swatchers as a lean
+production OS, not the old CRM/kanban suite. Polishes stay independent.
+
+## Canonical sources of truth
+
+| Concern | Source |
+| --- | --- |
+| Polish identity | `polishes` |
+| Current formula | `polish_recipe_lines` (+ `polishes.formula_version`) |
+| Historical formula | `production_batches.formula_snapshot` + `formula_version` |
+| Ingredient + SDS | `ingredients`, `ingredient_msds_documents`, `msds-sheets` |
+| Collection plan | `releases` + `release_polishes` |
+| R&D | `rd_prototypes` (ingredient lifecycle separate) |
+| Swatcher timeline | `swatchers` + `swatcher_assignments` |
+| Defaults | `ops_settings` (single row) |
+| Marketing notes | `ops_calendar_items` (thin; calendar also derives from releases/R&D/batches) |
+
+## Lifecycle boundaries
+
+1. **Product development:** experimental ingredient → prototype → review →
+   approve/reject → ingredient lifecycle updated explicitly.
+2. **Production:** polish planned on a release → formula ready → batch →
+   `production_status=complete`.
+3. **Launch:** release deadlines → swatcher send/return → marketing → launch.
+
+Experimental ingredients (`lifecycle_status=experimental`) are **not**
+production-eligible when linked on a recipe line. Free-text-only lines remain
+allowed (Tracey does not catalog every material).
+
+## Production planning rules
+
+- Remaining work = release polishes where `production_status != complete`
+  (one batch assumed per polish for planning).
+- Workdays default Mon–Fri; max 2 batches/day (`ops_settings`).
+- Plan evenly across remaining workdays through `production_complete_by`.
+- Missed days: re-run with new `today` and same remaining count.
+- Documented launch lead times (days before launch): marketing 7, swatch return
+  21, swatcher send 35, production complete 42.
+
+## Swatcher risk
+
+Transparent reasons only (no health score):
+
+- Assignment `send_by` passed without `sent_at`
+- Release `swatcher_send_by` passed with remaining production
+- Remaining batches exceed capacity before `swatcher_send_by`
+
+## Command Center
+
+`/admin` answers: needs attention, today, this week, upcoming releases with
+plain-language risk, and the projected production plan.
+
+## Migrations
+
+1. Ensure `012_simplify_to_core_ops.sql` is applied.
+2. Apply `013_production_operating_system.sql`.
+
+## Intentionally not built
+
+- Core stock-target replenishment automation
+- Full ingredient consumption ledger per batch
+- Multi-tenancy, AI agents, Shopify, MRP, purchasing
+- Re-enabling admin login (still `ADMIN_LOGIN_DISABLED`)
+
+## Future opportunities
+
+- Configurable lead-time UI (table already exists)
+- Optional ingredient_id picker in recipe editor
+- Core polish “below stock target” queue item
+- Signed-in admin enforcement once users exist
