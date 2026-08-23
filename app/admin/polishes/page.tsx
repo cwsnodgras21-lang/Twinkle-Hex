@@ -1,65 +1,64 @@
 import Link from "next/link";
-import { AdminPageShell, TableShell, EmptyState } from "@/components/admin";
-import { listAllPolishesWithRelease } from "@/lib/admin/polishes";
+import { AdminPageShell, EmptyState } from "@/components/admin";
+import { PolishSwatch } from "@/components/admin/polishes";
+import { listPolishesWithLineCount } from "@/lib/admin/polishes";
 
 export default async function AdminPolishesPage() {
-  const polishes = await listAllPolishesWithRelease();
+  const polishes = await listPolishesWithLineCount();
 
   return (
     <AdminPageShell
       title="Polishes"
-      description="Shades linked to releases. Open a polish to view or edit its recipe (ingredients in ounces). You can also add polishes from each release’s page."
-    >
-      <div className="bg-white border border-ink/10 rounded-lg overflow-hidden">
-        <TableShell
-          headers={["Polish", "Release", "Collection", "Recipe"]}
-          empty={polishes.length === 0}
-          emptyContent={
-            <EmptyState
-              title="No polishes yet"
-              description="Go to a release, use “Add polish”, then manage the recipe on the polish page. Or run your database migrations if tables are new."
-              action={
-                <Link
-                  href="/admin/releases"
-                  className="inline-flex px-4 py-2 bg-teal text-white rounded-lg hover:opacity-90"
-                >
-                  Open releases
-                </Link>
-              }
-            />
-          }
+      description="Every shade and how it's made. Open a polish to view or edit its recipe."
+      actions={
+        <Link
+          href="/admin/polishes/new"
+          className="inline-flex px-4 py-2 bg-teal text-white rounded-lg hover:opacity-90 text-sm font-medium transition-colors"
         >
+          New polish
+        </Link>
+      }
+    >
+      {polishes.length === 0 ? (
+        <div className="bg-white border border-ink/10 rounded-xl">
+          <EmptyState
+            title="No polishes yet"
+            description="Create a polish, then add its recipe (ingredients + amounts) on the same page."
+            action={
+              <Link
+                href="/admin/polishes/new"
+                className="inline-flex px-4 py-2 bg-teal text-white rounded-lg hover:opacity-90"
+              >
+                New polish
+              </Link>
+            }
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {polishes.map((p) => (
-            <tr key={p.id}>
-              <td className="px-4 py-3">
-                <Link
-                  href={`/admin/releases/${p.release_id}/polishes/${p.id}`}
-                  className="font-medium text-teal hover:underline"
-                >
-                  {p.name}
-                </Link>
-              </td>
-              <td className="px-4 py-3 text-ink/80">
-                <Link
-                  href={`/admin/releases/${p.release_id}`}
-                  className="text-teal hover:underline"
-                >
-                  {p.release_name}
-                </Link>
-              </td>
-              <td className="px-4 py-3 text-ink/70">{p.release_collection ?? "—"}</td>
-              <td className="px-4 py-3">
-                <Link
-                  href={`/admin/releases/${p.release_id}/polishes/${p.id}`}
-                  className="text-sm text-teal hover:underline"
-                >
-                  View / edit →
-                </Link>
-              </td>
-            </tr>
+            <Link
+              key={p.id}
+              href={`/admin/polishes/${p.id}`}
+              className="group bg-white border border-ink/10 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-plum/30 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <PolishSwatch colorHex={p.color_hex} size="lg" />
+                <div className="min-w-0">
+                  <p className="font-semibold text-ink truncate group-hover:text-plum transition-colors">
+                    {p.name}
+                  </p>
+                  <p className="text-xs text-ink/60 mt-0.5">
+                    {p.line_count > 0
+                      ? `${p.line_count} ingredient${p.line_count === 1 ? "" : "s"}`
+                      : "No recipe yet"}
+                  </p>
+                </div>
+              </div>
+            </Link>
           ))}
-        </TableShell>
-      </div>
+        </div>
+      )}
     </AdminPageShell>
   );
 }

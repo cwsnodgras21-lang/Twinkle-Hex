@@ -1,15 +1,7 @@
 /**
  * Shared TypeScript types.
- * Future: Product, Order, Customer, User, CommunityPost, etc.
+ * Admin domain types (Ingredient, Polish, FinishedInventoryItem, ...) live in ./admin.ts.
  */
-
-// Placeholder types - extend as features are built
-export interface Product {
-  id: string;
-  handle: string;
-  title: string;
-  // Future: price, variants, images, etc.
-}
 
 export interface User {
   id: string;

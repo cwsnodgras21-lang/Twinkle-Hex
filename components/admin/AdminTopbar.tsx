@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAdminLayout } from "./AdminLayoutContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,12 +42,6 @@ export function AdminTopbar() {
           {user?.email && (
             <span className="hidden sm:inline text-sm text-ink/60">{user.email}</span>
           )}
-          <Link
-            href="/"
-            className="text-sm text-ink/70 hover:text-teal transition-colors"
-          >
-            View Store
-          </Link>
           <button
             type="button"
             onClick={handleSignOut}

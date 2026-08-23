@@ -1,45 +1,44 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AdminPageShell, FormShell } from "@/components/admin";
-import { IngredientForm } from "@/components/admin/ingredients/IngredientForm";
-import { getIngredientById } from "@/lib/admin/ingredients";
+import { AdminPageShell, FormShell, StatusBadge } from "@/components/admin";
+import { IngredientForm, MsdsDocumentsPanel } from "@/components/admin/ingredients";
+import { getIngredientById, listIngredientMsdsDocuments } from "@/lib/admin/ingredients";
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
-export default async function EditIngredientPage({ params }: Props) {
+export default async function IngredientDetailPage({ params }: Props) {
   const { id } = await params;
   const ingredient = await getIngredientById(id);
   if (!ingredient) notFound();
 
+  const documents = ingredient.category === "pigment" ? await listIngredientMsdsDocuments(id) : [];
+  const low = ingredient.reorder_point != null && ingredient.quantity_on_hand <= ingredient.reorder_point;
+
   return (
     <AdminPageShell
-      title={`Edit: ${ingredient.name}`}
-      description="Update ingredient details."
+      title={ingredient.name}
+      description="Update stock levels and details."
+      actions={low ? <StatusBadge label="Low stock" variant="warning" /> : undefined}
     >
-      <FormShell
-        title="Ingredient details"
-        actions={
-          <>
-            <button
-              type="submit"
-              form="ingredient-form"
-              className="px-4 py-2 bg-teal text-white rounded-lg hover:opacity-90"
-            >
-              Save
-            </button>
-            <Link
-              href="/admin/ingredients"
-              className="px-4 py-2 border border-ink/20 rounded-lg hover:bg-ink/5"
-            >
-              Cancel
-            </Link>
-          </>
-        }
-      >
-        <IngredientForm ingredient={ingredient} mode="edit" />
-      </FormShell>
+      <div className="mb-6">
+        <Link href="/admin/ingredients" className="text-sm text-teal hover:underline">
+          ← Back to ingredients
+        </Link>
+      </div>
+
+      <div className="space-y-8">
+        <FormShell title="Details">
+          <IngredientForm ingredient={ingredient} mode="edit" />
+        </FormShell>
+
+        {ingredient.category === "pigment" && (
+          <FormShell title="MSDS / SDS sheets" description="Hazard documentation attached to this pigment.">
+            <MsdsDocumentsPanel ingredientId={ingredient.id} documents={documents} />
+          </FormShell>
+        )}
+      </div>
     </AdminPageShell>
   );
 }
