@@ -77,24 +77,26 @@ Restrained commerce signals also appear on the dashboard:
 
 ## Commerce / Shopify (v0.1)
 
-Architecture: **Shopify → n8n → `POST /api/integrations/shopify/orders` → app DB**.
+Architecture: **Shopify → `POST /api/integrations/shopify/webhook` → app DB**.
 
-n8n must not write to Supabase. The app owns validation, idempotency,
-persistence, and Shopify-variant → `polishes` mapping.
+Shopify sends order webhooks directly to Twinkle & Hex. The app verifies HMAC,
+normalizes the payload, and owns idempotency, persistence, and Shopify-variant →
+`polishes` mapping. No intermediary orchestration layer.
 
 | Concern | Source |
 | --- | --- |
 | Orders | `commerce_orders` |
 | Lines | `commerce_order_lines` (`polish_id` nullable until mapped) |
 | Variant → polish | `commerce_product_mappings` (keyed by Shopify variant id) |
-| Idempotency / observability | `commerce_integration_events` |
+| Idempotency / observability | `commerce_integration_events` (`X-Shopify-Webhook-Id`) |
 
-Auth: `Authorization: Bearer <TWINKLE_N8N_INGEST_SECRET>` (server-only).
+Auth: `X-Shopify-Hmac-Sha256` over the raw body using `SHOPIFY_CLIENT_SECRET`
+(server-only). Optional `SHOPIFY_SHOP_DOMAIN` rejects unexpected shops.
 
 UI: `/admin/orders` list + detail with mapping picker. Saving a mapping
 backfills existing unmapped lines for that variant.
 
-See `docs/integrations/shopify-n8n.md` for the companion n8n workflow.
+See `docs/integrations/shopify.md` for webhook setup.
 
 **NolTurn note:** Public NolTurn repos (`Nolturn-Local`, `nolturn-cmms`) were
 referenced for patterns; `nolturn-software-factory` was not accessible to this
@@ -115,7 +117,7 @@ Gravity / reductive scope from in-repo docs.
 - Multi-tenancy, AI agents, MRP, purchasing
 - Re-enabling admin login (still `ADMIN_LOGIN_DISABLED`)
 - Inventory decrement, production batch auto-create, Shopify fulfillment writes,
-  catalog sync, or n8n → Supabase direct writes
+  or catalog sync
 
 ## Future opportunities
 

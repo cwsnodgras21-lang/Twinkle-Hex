@@ -1,10 +1,10 @@
 /**
- * Shopify order ingest orchestration (n8n → app).
- * Owns validation outcomes, idempotency, upsert, and polish mapping lookup.
+ * Shopify order ingest orchestration.
+ * Owns validation outcomes, idempotency, freshness, upsert, and polish mapping lookup.
  */
 
-import type { ShopifyOrderIngestPayload } from "@/lib/commerce/contract";
-import { parseShopifyOrderIngest } from "@/lib/commerce/contract";
+import type { CommerceOrderInput } from "@/lib/commerce/contract";
+import { parseCommerceOrderInput } from "@/lib/commerce/contract";
 import type { CommerceRepository } from "@/lib/commerce/repository";
 import { resolveShopDomain } from "@/lib/commerce/repository";
 import type { CommerceOrder, CommerceOrderLine } from "@/types/commerce";
@@ -15,6 +15,7 @@ export type IngestResult =
       status: 200 | 201;
       duplicate: boolean;
       created: boolean;
+      skippedStale: boolean;
       orderId: string;
       shopifyOrderId: string;
       lineCount: number;
@@ -33,11 +34,27 @@ function isUniqueViolation(err: unknown): boolean {
   return e.code === "23505" || Boolean(e.message?.toLowerCase().includes("duplicate"));
 }
 
+/**
+ * True when an existing order is already newer than the incoming payload
+ * (protects against out-of-order Shopify webhook delivery).
+ */
+export function isStaleOrderUpdate(
+  existing: Pick<CommerceOrder, "shopify_updated_at"> | null,
+  incomingUpdatedAt: string | null | undefined
+): boolean {
+  if (!existing?.shopify_updated_at) return false;
+  if (!incomingUpdatedAt) return false;
+  const existingMs = Date.parse(existing.shopify_updated_at);
+  const incomingMs = Date.parse(incomingUpdatedAt);
+  if (Number.isNaN(existingMs) || Number.isNaN(incomingMs)) return false;
+  return incomingMs < existingMs;
+}
+
 export async function ingestShopifyOrder(
   raw: unknown,
   repo: CommerceRepository
 ): Promise<IngestResult> {
-  const parsed = parseShopifyOrderIngest(raw);
+  const parsed = parseCommerceOrderInput(raw);
   if (!parsed.ok) {
     return { ok: false, status: 400, error: parsed.error };
   }
@@ -62,6 +79,7 @@ export async function ingestShopifyOrder(
           status: 200,
           duplicate: true,
           created: false,
+          skippedStale: false,
           orderId: existing.commerce_order_id,
           shopifyOrderId: payload.order.shopifyOrderId,
           lineCount: lines.length,
@@ -95,6 +113,7 @@ export async function ingestShopifyOrder(
             status: 200,
             duplicate: true,
             created: false,
+            skippedStale: false,
             orderId: again.commerce_order_id,
             shopifyOrderId: payload.order.shopifyOrderId,
             lineCount: lines.length,
@@ -112,7 +131,42 @@ export async function ingestShopifyOrder(
   }
 
   try {
-    const { order, lines, created } = await upsertOrderFromPayload(payload, shopDomain, repo);
+    const existingOrder = await repo.findOrderByShopifyId(
+      shopDomain,
+      payload.order.shopifyOrderId
+    );
+
+    if (isStaleOrderUpdate(existingOrder, payload.order.updatedAt)) {
+      if (eventId) {
+        await repo.updateEvent(eventId, {
+          status: "processed",
+          commerce_order_id: existingOrder!.id,
+          processed_at: new Date().toISOString(),
+          error_message: "Skipped stale webhook (older updated_at than stored order).",
+        });
+      }
+      const lines = await repo.listLinesForOrder(existingOrder!.id);
+      const mapped = lines.filter((l) => l.polish_id).length;
+      return {
+        ok: true,
+        status: 200,
+        duplicate: false,
+        created: false,
+        skippedStale: true,
+        orderId: existingOrder!.id,
+        shopifyOrderId: existingOrder!.shopify_order_id,
+        lineCount: lines.length,
+        mappedLineCount: mapped,
+        unmappedLineCount: lines.length - mapped,
+      };
+    }
+
+    const { order, lines, created } = await upsertOrderFromPayload(
+      payload,
+      shopDomain,
+      repo,
+      existingOrder
+    );
     const mapped = lines.filter((l) => l.polish_id).length;
 
     if (eventId) {
@@ -129,6 +183,7 @@ export async function ingestShopifyOrder(
       status: created ? 201 : 200,
       duplicate: duplicateEvent && !created,
       created,
+      skippedStale: false,
       orderId: order.id,
       shopifyOrderId: order.shopify_order_id,
       lineCount: lines.length,
@@ -153,11 +208,11 @@ export async function ingestShopifyOrder(
 }
 
 async function upsertOrderFromPayload(
-  payload: ShopifyOrderIngestPayload,
+  payload: CommerceOrderInput,
   shopDomain: string,
-  repo: CommerceRepository
+  repo: CommerceRepository,
+  existing: CommerceOrder | null
 ): Promise<{ order: CommerceOrder; lines: CommerceOrderLine[]; created: boolean }> {
-  const existing = await repo.findOrderByShopifyId(shopDomain, payload.order.shopifyOrderId);
   const order = await repo.upsertOrder({
     shop_domain: shopDomain,
     shopify_order_id: payload.order.shopifyOrderId,

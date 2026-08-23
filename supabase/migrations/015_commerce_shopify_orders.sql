@@ -1,5 +1,5 @@
 -- Commerce / Shopify order ingestion (additive).
--- Shopify → n8n → app API → these tables. n8n must not write here directly.
+-- Shopify → app webhook API → these tables. App owns validation and persistence.
 -- Maps Shopify variants to existing polishes (canonical product entity).
 
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -153,7 +153,7 @@ CREATE TRIGGER commerce_integration_events_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================================
--- RLS: admin JWT only (service role bypasses for n8n ingest)
+-- RLS: admin JWT only (service role bypasses for webhook ingest)
 -- ============================================================
 
 SELECT _lock_table_to_admin('commerce_orders');
@@ -162,10 +162,10 @@ SELECT _lock_table_to_admin('commerce_product_mappings');
 SELECT _lock_table_to_admin('commerce_integration_events');
 
 COMMENT ON TABLE commerce_orders IS
-  'Shopify orders ingested via n8n → app API. App owns validation and persistence.';
+  'Shopify orders ingested via app webhook API. App owns validation and persistence.';
 COMMENT ON TABLE commerce_order_lines IS
   'Line items for commerce_orders. polish_id null until Shopify variant is mapped.';
 COMMENT ON TABLE commerce_product_mappings IS
   'Durable Shopify variant → polishes mapping. Variant ID is the immutable key.';
 COMMENT ON TABLE commerce_integration_events IS
-  'Idempotency + observability for n8n delivery retries.';
+  'Idempotency + observability for Shopify webhook deliveries (X-Shopify-Webhook-Id).';

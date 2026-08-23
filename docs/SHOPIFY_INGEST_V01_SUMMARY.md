@@ -1,80 +1,65 @@
-# Shopify Order Ingest v0.1 — What Was Done
+# Shopify Order Ingest — Summary
 
-**PR:** https://github.com/cwsnodgras21-lang/Twinkle-Hex/pull/8  
-**Branch:** `cursor/shopify-order-ingestion-7a08`
+## Objective
 
-## Goal
+Connect the Twinkle & Hex Shopify store so orders become usable operational
+demand — without production/inventory automation yet.
 
-Connect the Twinkle & Hex Shopify store to the ops app through n8n so orders become usable operational demand — without n8n writing to Supabase, and without production/inventory automation yet.
+## Architecture
 
 ```
-Shopify → n8n → POST /api/integrations/shopify/orders → app DB
+Shopify → POST /api/integrations/shopify/webhook → commerce ingest → Supabase
 ```
 
-## Audit first
+Shopify delivers webhooks directly to Vercel. The app verifies HMAC, normalizes
+the order, and upserts into commerce tables.
 
-Existing app is Next.js 14 + Supabase admin ops. Canonical product entity is **`polishes`**. No live orders model (dropped in migration 012). No API routes; mutations were mostly server actions. No Zod. RLS is admin JWT; writes often use service role. Tests are Vitest pure-logic suites.
+## Database (migration 015 — unchanged schema)
 
-**NolTurn:** Public repos (`Nolturn-Local`, `nolturn-cmms`) were readable. `nolturn-software-factory` was not accessible. Work followed Twinkle & Hex patterns + reductive scope from in-repo docs.
-
-## Database (`015_commerce_shopify_orders.sql`)
-
-| Table | Purpose |
+| Table | Role |
 | --- | --- |
-| `commerce_orders` | Shopify order header; unique `(shop_domain, shopify_order_id)` |
-| `commerce_order_lines` | Line items; unique per order + Shopify line id; `polish_id` nullable |
-| `commerce_product_mappings` | Shopify variant → `polishes`; keyed by variant id |
-| `commerce_integration_events` | Idempotency + observability for n8n retries |
+| `commerce_orders` | One row per Shopify order (shop + order id unique) |
+| `commerce_order_lines` | Line items; `polish_id` nullable until mapped |
+| `commerce_product_mappings` | Shopify variant id → `polishes` |
+| `commerce_integration_events` | Delivery idempotency + observability |
 
-Admin-only RLS on all four. Service role used for ingest writes.
+**Migration 015 was not rewritten for this transport change.** No additive
+migration was required: existing columns cover webhook idempotency and order
+freshness (`shopify_updated_at`).
 
 ## API
 
-- **Route:** `POST /api/integrations/shopify/orders`
-- **Auth:** `Authorization: Bearer <TWINKLE_N8N_INGEST_SECRET>` (server-only)
-- **Contract:** Zod schema in `lib/commerce/contract.ts` (normalized n8n payload)
-- **Behavior:** validate → record event → upsert order/lines → apply known mappings → return structured JSON
-- **Idempotency:** same `eventId` / same Shopify order does not create duplicates; later updates overwrite state
+- **Route:** `POST /api/integrations/shopify/webhook`
+- **Auth:** Shopify `X-Shopify-Hmac-Sha256` over raw body + optional shop domain check
+- **Internal contract:** `CommerceOrderInput` in `lib/commerce/contract.ts`
+- **Normalize:** `lib/commerce/shopify-normalize.ts`
+- **Topics:** `orders/create`, `orders/updated`, `orders/edited`
 
-## Product mapping
+## UI (preserved)
 
-- Durable key = **Shopify variant id** (SKU is assistive only)
-- Unknown variants ingest as **Needs mapping** (`polish_id` null)
-- Saving a mapping from the Orders UI backfills existing unmapped lines for that variant
+- `/admin/orders` — list + Needs Mapping counts
+- `/admin/orders/[id]` — detail + variant → polish mapping picker
+- Dashboard open-demand + needs-mapping strip
 
-## UI
-
-- Sidebar: **Orders**
-- `/admin/orders` — list (order #, date, customer, bottles, payment, fulfillment, mapping status, total)
-- `/admin/orders/[id]` — lines + polish picker for unmapped variants
-- Dashboard strip: open order demand + needs-mapping counts
-
-## Docs / env
-
-- `docs/integrations/shopify-n8n.md` — Shopify + n8n setup, node sequence, field map, error handling
-- Updated `docs/ARCHITECTURE.md`, `CHANGES.md`, `README.md`, `.env.example`
-
-**Env to configure:**
+## Env
 
 | Variable | Required |
 | --- | --- |
-| `TWINKLE_N8N_INGEST_SECRET` | Yes (app + n8n) |
-| `SHOPIFY_SHOP_DOMAIN` | Optional |
-| Existing Supabase URL / anon / service role | Yes |
+| `SHOPIFY_CLIENT_SECRET` | Yes |
+| `SHOPIFY_SHOP_DOMAIN` | Recommended (reject unexpected shops) |
 
-## Tests & verification
+## Docs
 
-- Vitest: auth, malformed payload, create order + lines, known/unknown mapping, duplicate event, order update, mapping backfill, secret boundary
-- Passed: `tsc --noEmit`, `npm test` (30), `npm run lint`, `npm run build`
+- `docs/integrations/shopify.md` — setup, security, test procedure
 
-## Explicitly not built
+## Explicit non-goals
 
-Inventory decrement, production batch creation, calendar scheduling, Shopify fulfillment writes, catalog sync, refunds, polling Shopify, or n8n → Supabase direct writes.
+Inventory decrement, production batch creation, calendar scheduling, Shopify
+fulfillment writes, catalog sync, refunds, polling Shopify.
 
-## What you still need to do
+## After merge (manual)
 
-1. Apply `015_commerce_shopify_orders.sql` in Supabase
-2. Set `TWINKLE_N8N_INGEST_SECRET` (and optional `SHOPIFY_SHOP_DOMAIN`) on Vercel
-3. Point Shopify order webhooks at n8n
-4. Build the n8n workflow per `docs/integrations/shopify-n8n.md`
-5. Place a test order and confirm it appears under **Admin → Orders**
+1. Apply migration `015` if not already on live Supabase
+2. Set `SHOPIFY_CLIENT_SECRET` and `SHOPIFY_SHOP_DOMAIN` on Vercel (remove any old `TWINKLE_N8N_INGEST_SECRET`)
+3. Register Shopify webhooks at `/api/integrations/shopify/webhook`
+4. Place a test order and verify Admin → Orders

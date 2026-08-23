@@ -1,6 +1,6 @@
 /**
- * Normalized n8n → app Shopify order ingest contract.
- * Runtime validation via Zod; do not trust monetary values or IDs blindly.
+ * Internal commerce order input — normalized form used by ingest/upsert.
+ * Not a public webhook contract; Shopify payloads are normalized into this shape.
  */
 
 import { z } from "zod";
@@ -60,7 +60,8 @@ const orderSchema = z.object({
   lineItems: z.array(lineItemSchema).max(500),
 });
 
-export const shopifyOrderIngestSchema = z.object({
+/** Envelope passed from webhook handler → ingest service. */
+export const commerceOrderInputSchema = z.object({
   provider: z.literal("shopify"),
   event: z.string().trim().min(1).max(128),
   eventId: z.string().trim().min(1).max(256),
@@ -70,18 +71,17 @@ export const shopifyOrderIngestSchema = z.object({
     .trim()
     .min(1)
     .max(255)
-    .optional()
-    .transform((v) => (v && v.length ? v.toLowerCase() : undefined)),
+    .transform((v) => v.toLowerCase()),
   order: orderSchema,
 });
 
-export type ShopifyOrderIngestPayload = z.infer<typeof shopifyOrderIngestSchema>;
-export type ShopifyIngestLineItem = z.infer<typeof lineItemSchema>;
+export type CommerceOrderInput = z.infer<typeof commerceOrderInputSchema>;
+export type CommerceOrderLineInput = z.infer<typeof lineItemSchema>;
 
-export function parseShopifyOrderIngest(input: unknown):
-  | { ok: true; data: ShopifyOrderIngestPayload }
+export function parseCommerceOrderInput(input: unknown):
+  | { ok: true; data: CommerceOrderInput }
   | { ok: false; error: string; issues?: z.ZodIssue[] } {
-  const result = shopifyOrderIngestSchema.safeParse(input);
+  const result = commerceOrderInputSchema.safeParse(input);
   if (!result.success) {
     const first = result.error.issues[0];
     const path = first?.path?.length ? first.path.join(".") : "payload";

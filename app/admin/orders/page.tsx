@@ -39,7 +39,7 @@ export default async function AdminOrdersPage() {
   return (
     <AdminPageShell
       title="Orders"
-      description="Shopify demand ingested via n8n. Map variants to polishes — no inventory or production automation yet."
+      description="Shopify demand received via webhook. Map variants to polishes — no inventory or production automation yet."
     >
       {loadError && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
@@ -77,7 +77,7 @@ export default async function AdminOrdersPage() {
           emptyContent={
             <EmptyState
               title="No Shopify orders yet"
-              description="When n8n posts orders to the ingest API, they will show up here."
+              description="When Shopify sends order webhooks, they will show up here."
             />
           }
         >
