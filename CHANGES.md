@@ -1,6 +1,37 @@
 # Twinkle & Hex — Change Log
 
-## Production Operating System (this branch)
+## Shopify order ingest v0.1 (this branch)
+
+First production-ready commerce path: Shopify orders flow through n8n into the
+app; the app owns validation, persistence, idempotency, and polish mapping.
+
+### Added
+
+- Migration `015_commerce_shopify_orders.sql` — `commerce_orders`,
+  `commerce_order_lines`, `commerce_product_mappings`,
+  `commerce_integration_events` (RLS admin-only)
+- `POST /api/integrations/shopify/orders` — bearer-auth ingest for n8n
+- Zod contract + in-memory/Supabase repository + ingest orchestration
+- `/admin/orders` list + detail with variant → polish mapping (backfills lines)
+- Dashboard strip: open order demand + needs mapping
+- Docs: `docs/integrations/shopify-n8n.md`
+- Vitest coverage for auth, validation, ingest, idempotency, mapping
+
+### Intentionally not built
+
+- Inventory decrement, production scheduling/batches, Shopify fulfillment
+  write-back, catalog sync, refunds, n8n → Supabase direct writes
+
+### Apply on live Supabase
+
+1. Prior migrations through `014` as needed
+2. `015_commerce_shopify_orders.sql`
+3. Set `TWINKLE_N8N_INGEST_SECRET` (and optional `SHOPIFY_SHOP_DOMAIN`) on Vercel
+4. Configure n8n per `docs/integrations/shopify-n8n.md`
+
+---
+
+## Production Operating System (prior)
 
 Turned the lean stock/ingredients/recipes admin into Tracey’s production OS
 without rewriting the gravitational centers.

@@ -29,6 +29,7 @@ Built with Next.js 14+, TypeScript, Tailwind CSS, and Supabase.
 │   ├── rd/                   # R&D prototypes
 │   ├── swatchers/            # Swatcher timeline
 │   ├── calendar/             # Unified operating calendar
+│   ├── orders/               # Shopify demand + mapping
 │   ├── inventory/            # Finished stock
 │   └── settings/
 ├── lib/ops/                  # Pure planning/risk/scaling logic
@@ -52,6 +53,8 @@ Built with Next.js 14+, TypeScript, Tailwind CSS, and Supabase.
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server writes + SDS storage (never expose to browser) |
+| `TWINKLE_N8N_INGEST_SECRET` | For Shopify ingest | Bearer secret for n8n → `/api/integrations/shopify/orders` |
+| `SHOPIFY_SHOP_DOMAIN` | Optional | Default shop domain when payload omits `shopDomain` |
 
 ## Admin Access
 
@@ -71,4 +74,5 @@ re-enable once a real admin user exists. See `docs/ARCHITECTURE.md`.
 
 - `docs/MILESTONE_0_ASSESSMENT.md` — gap analysis / reuse plan
 - `docs/ARCHITECTURE.md` — canonical sources, planning rules, risk rules
+- `docs/integrations/shopify-n8n.md` — Shopify → n8n → app ingest setup
 - `CHANGES.md` — session history
