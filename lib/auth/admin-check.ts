@@ -15,7 +15,12 @@ import type { User } from "@supabase/supabase-js";
  *   set raw_app_meta_data = raw_app_meta_data || '{"role": "admin"}'::jsonb
  *   where email = 'owner@example.com';
  */
+// TEMP: login enforcement disabled while there's no admin data/setup yet.
+// Revert this to `return user?.app_metadata?.role === "admin";` to turn login back on.
+const ADMIN_LOGIN_DISABLED = true;
+
 export function isUserAdmin(user: User | null): boolean {
+  if (ADMIN_LOGIN_DISABLED) return true;
   return user?.app_metadata?.role === "admin";
 }
 
