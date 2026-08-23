@@ -1,6 +1,38 @@
 # Twinkle & Hex — Change Log
 
-## Production Operating System (this branch)
+## Shopify order ingest v0.1 (this branch)
+
+First production-ready commerce path: Shopify sends order webhooks directly to
+Twinkle & Hex; the app verifies HMAC, normalizes, persists, and maps variants to
+polishes. No intermediary orchestration layer.
+
+### Added
+
+- Migration `015_commerce_shopify_orders.sql` — `commerce_orders`,
+  `commerce_order_lines`, `commerce_product_mappings`,
+  `commerce_integration_events` (RLS admin-only; schema unchanged for direct webhooks)
+- `POST /api/integrations/shopify/webhook` — Shopify HMAC-verified ingest
+- Shopify normalize → internal `CommerceOrderInput` + ingest orchestration
+- `/admin/orders` list + detail with variant → polish mapping (backfills lines)
+- Dashboard strip: open order demand + needs mapping
+- Docs: `docs/integrations/shopify.md`
+- Vitest coverage for HMAC, shop validation, ingest, idempotency, freshness, mapping
+
+### Intentionally not built
+
+- Inventory decrement, production scheduling/batches, Shopify fulfillment
+  write-back, catalog sync, refunds
+
+### Apply on live Supabase
+
+1. Prior migrations through `014` as needed
+2. `015_commerce_shopify_orders.sql`
+3. Set `SHOPIFY_CLIENT_SECRET` and `SHOPIFY_SHOP_DOMAIN` on Vercel
+4. Register Shopify order webhooks per `docs/integrations/shopify.md`
+
+---
+
+## Production Operating System (prior)
 
 Turned the lean stock/ingredients/recipes admin into Tracey’s production OS
 without rewriting the gravitational centers.

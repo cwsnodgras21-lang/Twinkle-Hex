@@ -1,8 +1,10 @@
 import { AdminTopbar } from "@/components/admin/AdminTopbar";
 import { CalendarCard } from "@/components/admin/dashboard/CalendarCard";
+import { OrderDemandStrip } from "@/components/admin/dashboard/OrderDemandStrip";
 import { TodayPlanCard } from "@/components/admin/dashboard/TodayPlanCard";
 import { AtRiskCard, StatsRow, SwatchersCard } from "@/components/admin/dashboard/DashboardCards";
 import { loadDashboardData } from "@/lib/admin/command-center-data";
+import { getCommerceDemandStats } from "@/lib/commerce/orders";
 import { getCurrentUser } from "@/lib/auth/helpers";
 
 function greetingForHour(hour: number): string {
@@ -19,7 +21,11 @@ function firstName(user: Awaited<ReturnType<typeof getCurrentUser>>): string {
 }
 
 export default async function AdminDashboardPage() {
-  const [data, user] = await Promise.all([loadDashboardData(), getCurrentUser()]);
+  const [data, user, demand] = await Promise.all([
+    loadDashboardData(),
+    getCurrentUser(),
+    getCommerceDemandStats(),
+  ]);
   const now = new Date(`${data.today}T00:00:00Z`);
   const dateLabel = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 
@@ -40,6 +46,7 @@ export default async function AdminDashboardPage() {
         </header>
 
         <StatsRow stats={data.stats} />
+        <OrderDemandStrip demand={demand} />
 
         <div className="flex flex-wrap gap-5 items-start">
           <CalendarCard months={data.months} events={data.events} today={data.today} />

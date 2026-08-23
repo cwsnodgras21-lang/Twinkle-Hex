@@ -70,17 +70,54 @@ Transparent reasons only (no health score):
 `/admin` answers: needs attention, today, this week, upcoming releases with
 plain-language risk, and the projected production plan.
 
+Restrained commerce signals also appear on the dashboard:
+
+- Open order demand (unfulfilled Shopify orders + bottle count)
+- Needs product mapping (unmapped line / variant counts)
+
+## Commerce / Shopify (v0.1)
+
+Architecture: **Shopify → `POST /api/integrations/shopify/webhook` → app DB**.
+
+Shopify sends order webhooks directly to Twinkle & Hex. The app verifies HMAC,
+normalizes the payload, and owns idempotency, persistence, and Shopify-variant →
+`polishes` mapping. No intermediary orchestration layer.
+
+| Concern | Source |
+| --- | --- |
+| Orders | `commerce_orders` |
+| Lines | `commerce_order_lines` (`polish_id` nullable until mapped) |
+| Variant → polish | `commerce_product_mappings` (keyed by Shopify variant id) |
+| Idempotency / observability | `commerce_integration_events` (`X-Shopify-Webhook-Id`) |
+
+Auth: `X-Shopify-Hmac-Sha256` over the raw body using `SHOPIFY_CLIENT_SECRET`
+(server-only). Optional `SHOPIFY_SHOP_DOMAIN` rejects unexpected shops.
+
+UI: `/admin/orders` list + detail with mapping picker. Saving a mapping
+backfills existing unmapped lines for that variant.
+
+See `docs/integrations/shopify.md` for webhook setup.
+
+**NolTurn note:** Public NolTurn repos (`Nolturn-Local`, `nolturn-cmms`) were
+referenced for patterns; `nolturn-software-factory` was not accessible to this
+agent. Work followed existing Twinkle & Hex conventions plus Organizational
+Gravity / reductive scope from in-repo docs.
+
 ## Migrations
 
 1. Ensure `012_simplify_to_core_ops.sql` is applied.
 2. Apply `013_production_operating_system.sql`.
+3. Apply `014_ops_daily_tasks.sql` if used.
+4. Apply `015_commerce_shopify_orders.sql` for Shopify ingest.
 
 ## Intentionally not built
 
 - Core stock-target replenishment automation
 - Full ingredient consumption ledger per batch
-- Multi-tenancy, AI agents, Shopify, MRP, purchasing
+- Multi-tenancy, AI agents, MRP, purchasing
 - Re-enabling admin login (still `ADMIN_LOGIN_DISABLED`)
+- Inventory decrement, production batch auto-create, Shopify fulfillment writes,
+  or catalog sync
 
 ## Future opportunities
 
@@ -88,3 +125,4 @@ plain-language risk, and the projected production plan.
 - Optional ingredient_id picker in recipe editor
 - Core polish “below stock target” queue item
 - Signed-in admin enforcement once users exist
+- Production-demand automation once ingest + mapping are trusted

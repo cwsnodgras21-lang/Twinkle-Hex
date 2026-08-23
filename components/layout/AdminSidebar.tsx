@@ -27,6 +27,7 @@ const adminNavItems: NavItem[] = [
   { href: "/admin/rd", label: "R&D Lab", icon: "◇" },
   { href: "/admin/swatchers", label: "Swatchers", icon: "○" },
   { href: "/admin/calendar", label: "Calendar", icon: "▤" },
+  { href: "/admin/orders", label: "Orders", icon: "▦" },
   { href: "/admin/inventory", label: "Finished Stock", icon: "●" },
 ];
 
