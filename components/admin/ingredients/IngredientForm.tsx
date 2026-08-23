@@ -135,6 +135,26 @@ export function IngredientForm({ ingredient, mode, defaultCategory }: Ingredient
           />
         </div>
         <div>
+          <label htmlFor="lifecycle_status" className="block text-sm font-medium text-ink mb-1">
+            Lifecycle
+          </label>
+          <select
+            id="lifecycle_status"
+            name="lifecycle_status"
+            defaultValue={ingredient?.lifecycle_status ?? "tracked"}
+            className="w-full border border-ink/20 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal"
+          >
+            <option value="tracked">Tracked</option>
+            <option value="experimental">Experimental (R&amp;D)</option>
+            <option value="approved">Approved for production</option>
+            <option value="rejected">Rejected</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
           <label htmlFor="supplier" className="block text-sm font-medium text-ink mb-1">
             Supplier
           </label>
@@ -145,6 +165,47 @@ export function IngredientForm({ ingredient, mode, defaultCategory }: Ingredient
             defaultValue={ingredient?.supplier}
             className="w-full border border-ink/20 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal"
             placeholder="Supplier name"
+          />
+        </div>
+        <div>
+          <label htmlFor="supplier_identifier" className="block text-sm font-medium text-ink mb-1">
+            Supplier ID
+          </label>
+          <input
+            id="supplier_identifier"
+            name="supplier_identifier"
+            type="text"
+            defaultValue={ingredient?.supplier_identifier}
+            className="w-full border border-ink/20 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal"
+            placeholder="Supplier catalog / SKU"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="received_date" className="block text-sm font-medium text-ink mb-1">
+            Received date
+          </label>
+          <input
+            id="received_date"
+            name="received_date"
+            type="date"
+            defaultValue={ingredient?.received_date ?? ""}
+            className="w-full border border-ink/20 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal"
+          />
+        </div>
+        <div>
+          <label htmlFor="lot_number" className="block text-sm font-medium text-ink mb-1">
+            Lot / batch
+          </label>
+          <input
+            id="lot_number"
+            name="lot_number"
+            type="text"
+            defaultValue={ingredient?.lot_number}
+            className="w-full border border-ink/20 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal"
+            placeholder="Optional lot number"
           />
         </div>
       </div>

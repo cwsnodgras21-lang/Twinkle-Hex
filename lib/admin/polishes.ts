@@ -32,6 +32,9 @@ function mapPolishRow(row: Record<string, unknown>): Polish {
     sort_order: num(row.sort_order),
     color_hex: (row.color_hex as string) ?? undefined,
     notes: (row.notes as string) ?? undefined,
+    formula_version: num(row.formula_version) || 1,
+    is_core: Boolean(row.is_core),
+    stock_target: row.stock_target != null ? num(row.stock_target) : undefined,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -44,6 +47,7 @@ function mapLineRow(row: Record<string, unknown>): PolishRecipeLine {
     sort_order: num(row.sort_order),
     ingredient_name: row.ingredient_name as string,
     amount_oz: num(row.amount_oz),
+    ingredient_id: (row.ingredient_id as string) ?? undefined,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -131,6 +135,8 @@ export type CreatePolishInput = {
   sort_order?: number;
   color_hex?: string | null;
   notes?: string | null;
+  is_core?: boolean;
+  stock_target?: number | null;
 };
 
 export async function createPolish(input: CreatePolishInput): Promise<Polish> {
@@ -142,6 +148,9 @@ export async function createPolish(input: CreatePolishInput): Promise<Polish> {
       sort_order: input.sort_order ?? 0,
       color_hex: input.color_hex ?? null,
       notes: input.notes ?? null,
+      is_core: input.is_core ?? false,
+      stock_target: input.stock_target ?? null,
+      formula_version: 1,
     })
     .select()
     .single();
@@ -155,6 +164,8 @@ export type UpdatePolishInput = {
   sort_order?: number;
   color_hex?: string | null;
   notes?: string | null;
+  is_core?: boolean;
+  stock_target?: number | null;
 };
 
 export async function updatePolish(id: string, input: UpdatePolishInput): Promise<Polish> {
@@ -164,6 +175,8 @@ export async function updatePolish(id: string, input: UpdatePolishInput): Promis
   if (input.sort_order !== undefined) patch.sort_order = input.sort_order;
   if (input.color_hex !== undefined) patch.color_hex = input.color_hex;
   if (input.notes !== undefined) patch.notes = input.notes;
+  if (input.is_core !== undefined) patch.is_core = input.is_core;
+  if (input.stock_target !== undefined) patch.stock_target = input.stock_target;
 
   const { data, error } = await supabase.from("polishes").update(patch).eq("id", id).select().single();
 
@@ -177,17 +190,22 @@ export async function deletePolish(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export type RecipeLineInput = { ingredient_name: string; amount_oz: number };
+export type RecipeLineInput = {
+  ingredient_name: string;
+  amount_oz: number;
+  ingredient_id?: string | null;
+};
 
 /**
  * Replace all recipe lines for a polish. Prefers RPC (atomic); falls back to delete+insert
- * if the migration has not been applied yet.
+ * if the migration has not been applied yet. Bumps formula_version on success.
  */
 export async function replacePolishRecipeLines(polishId: string, lines: RecipeLineInput[]): Promise<void> {
   const supabase = await resolveWriteClient();
   const payload = lines.map((l) => ({
     ingredient_name: l.ingredient_name.trim(),
     amount_oz: l.amount_oz,
+    ...(l.ingredient_id ? { ingredient_id: l.ingredient_id } : {}),
   }));
 
   const { error } = await supabase.rpc("replace_polish_recipe_lines", {
@@ -208,14 +226,24 @@ export async function replacePolishRecipeLines(polishId: string, lines: RecipeLi
   const { error: delErr } = await supabase.from("polish_recipe_lines").delete().eq("polish_id", polishId);
   if (delErr) throw delErr;
 
-  if (payload.length === 0) return;
+  if (payload.length > 0) {
+    const rows = payload.map((l, i) => ({
+      polish_id: polishId,
+      sort_order: i,
+      ingredient_name: l.ingredient_name,
+      amount_oz: l.amount_oz,
+      ingredient_id: l.ingredient_id ?? null,
+    }));
+    const { error: insErr } = await supabase.from("polish_recipe_lines").insert(rows);
+    if (insErr) throw insErr;
+  }
 
-  const rows = payload.map((l, i) => ({
-    polish_id: polishId,
-    sort_order: i,
-    ingredient_name: l.ingredient_name,
-    amount_oz: l.amount_oz,
-  }));
-  const { error: insErr } = await supabase.from("polish_recipe_lines").insert(rows);
-  if (insErr) throw insErr;
+  // Fallback path: bump formula version manually (RPC does this when available).
+  const current = await getPolishById(polishId);
+  const nextVersion = (current?.formula_version ?? 1) + 1;
+  const { error: verErr } = await supabase
+    .from("polishes")
+    .update({ formula_version: nextVersion })
+    .eq("id", polishId);
+  if (verErr) throw verErr;
 }

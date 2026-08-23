@@ -8,7 +8,12 @@
 
 import { createAdminClient } from "@/supabase/admin";
 import { createClient } from "@/supabase/server";
-import type { Ingredient, IngredientCategory, IngredientMsdsDocument } from "@/types/admin";
+import type {
+  Ingredient,
+  IngredientCategory,
+  IngredientLifecycleStatus,
+  IngredientMsdsDocument,
+} from "@/types/admin";
 
 export const MSDS_BUCKET = "msds-sheets";
 export const MSDS_MAX_BYTES = 10 * 1024 * 1024;
@@ -27,9 +32,13 @@ function mapRow(row: Record<string, unknown>): Ingredient {
     id: row.id as string,
     name: row.name as string,
     category: ((row.category as string) || "ingredient") as IngredientCategory,
+    lifecycle_status: ((row.lifecycle_status as string) || "tracked") as IngredientLifecycleStatus,
     sku: (row.sku as string) ?? undefined,
     supplier: (row.supplier as string) ?? undefined,
+    supplier_identifier: (row.supplier_identifier as string) ?? undefined,
     color_description: (row.color_description as string) ?? undefined,
+    received_date: (row.received_date as string) ?? undefined,
+    lot_number: (row.lot_number as string) ?? undefined,
     unit: (row.unit as string) ?? "g",
     quantity_on_hand: Number(row.quantity_on_hand ?? 0),
     reorder_point:
@@ -91,9 +100,13 @@ export async function createIngredient(
     .insert({
       name: data.name,
       category: data.category ?? "ingredient",
+      lifecycle_status: data.lifecycle_status ?? "tracked",
       sku: data.sku ?? null,
       supplier: data.supplier ?? null,
+      supplier_identifier: data.supplier_identifier ?? null,
       color_description: data.color_description ?? null,
+      received_date: data.received_date ?? null,
+      lot_number: data.lot_number ?? null,
       unit: data.unit ?? "g",
       quantity_on_hand: data.quantity_on_hand ?? 0,
       low_stock_threshold: data.reorder_point ?? null,
@@ -107,13 +120,26 @@ export async function createIngredient(
 }
 
 export type UpdateIngredientInput = Partial<
-  Omit<Ingredient, "sku" | "supplier" | "color_description" | "notes" | "reorder_point">
+  Omit<
+    Ingredient,
+    | "sku"
+    | "supplier"
+    | "supplier_identifier"
+    | "color_description"
+    | "notes"
+    | "reorder_point"
+    | "received_date"
+    | "lot_number"
+  >
 > & {
   sku?: string | null;
   supplier?: string | null;
+  supplier_identifier?: string | null;
   color_description?: string | null;
   notes?: string | null;
   reorder_point?: number | null;
+  received_date?: string | null;
+  lot_number?: string | null;
 };
 
 export async function updateIngredient(id: string, data: UpdateIngredientInput): Promise<Ingredient> {
@@ -123,9 +149,13 @@ export async function updateIngredient(id: string, data: UpdateIngredientInput):
     .update({
       ...(data.name !== undefined && { name: data.name }),
       ...(data.category !== undefined && { category: data.category }),
+      ...(data.lifecycle_status !== undefined && { lifecycle_status: data.lifecycle_status }),
       ...(data.sku !== undefined && { sku: data.sku }),
       ...(data.supplier !== undefined && { supplier: data.supplier }),
+      ...(data.supplier_identifier !== undefined && { supplier_identifier: data.supplier_identifier }),
       ...(data.color_description !== undefined && { color_description: data.color_description }),
+      ...(data.received_date !== undefined && { received_date: data.received_date }),
+      ...(data.lot_number !== undefined && { lot_number: data.lot_number }),
       ...(data.unit !== undefined && { unit: data.unit }),
       ...(data.quantity_on_hand !== undefined && { quantity_on_hand: data.quantity_on_hand }),
       ...(data.reorder_point !== undefined && { low_stock_threshold: data.reorder_point }),
