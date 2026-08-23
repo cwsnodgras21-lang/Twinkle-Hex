@@ -212,6 +212,18 @@ export interface OpsSettings {
   updated_at: string;
 }
 
+export interface DailyTask {
+  id: string;
+  title: string;
+  tag?: string;
+  time_label?: string;
+  item_date: string;
+  done: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export type OpsCalendarItemKind = "marketing" | "email" | "post" | "other";
 
 export interface OpsCalendarItem {
