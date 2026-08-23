@@ -1,29 +1,26 @@
 /**
  * Admin domain models - Supabase-ready TypeScript types.
  * Use these for forms, tables, and API responses.
- * Supabase tables will map to these shapes.
+ *
+ * This app answers three questions, and the types below are organized
+ * around them rather than by leftover feature names:
+ *  1. What's in finished stock       -> FinishedInventoryItem
+ *  2. What's in ingredients          -> Ingredient (raw materials, pigments,
+ *                                        and supplies all live in one table,
+ *                                        distinguished by `category`)
+ *  3. How is each polish made        -> Polish + PolishRecipeLine
  */
 
-// --- Ingredients (raw materials for polish) ---
+// --- Ingredients: raw materials, pigments, and supplies in one place ---
+export type IngredientCategory = "ingredient" | "pigment" | "supply";
+
 export interface Ingredient {
   id: string;
   name: string;
+  category: IngredientCategory;
   sku?: string;
   supplier?: string;
-  unit: string;
-  quantity_on_hand: number;
-  reorder_point?: number;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// --- Pigments (colorants with MSDS attachments) ---
-export interface Pigment {
-  id: string;
-  name: string;
-  sku?: string;
-  supplier?: string;
+  /** Pigment-specific: e.g. "Deep navy with gold shimmer". */
   color_description?: string;
   unit: string;
   quantity_on_hand: number;
@@ -33,9 +30,10 @@ export interface Pigment {
   updated_at: string;
 }
 
-export interface PigmentMsdsDocument {
+/** MSDS/SDS PDF attached to an ingredient (typically a pigment). */
+export interface IngredientMsdsDocument {
   id: string;
-  pigment_id: string;
+  ingredient_id: string;
   file_name: string;
   storage_path: string;
   file_size?: number;
@@ -44,97 +42,14 @@ export interface PigmentMsdsDocument {
   uploaded_at: string;
 }
 
-// --- Supplies (packaging, labels, misc) ---
-export interface Supply {
+// --- Polishes: how each shade is made ---
+export interface Polish {
   id: string;
-  name: string;
-  sku?: string;
-  category?: string;
-  unit: string;
-  quantity_on_hand: number;
-  reorder_point?: number;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// --- Batches (production runs) ---
-export type BatchStatus = "planned" | "in_progress" | "completed" | "cancelled";
-
-export interface Batch {
-  id: string;
-  batch_number: string;
-  product_id?: string; // Shopify product ID when linked
-  status: BatchStatus;
-  planned_date?: string;
-  completed_at?: string;
-  quantity_produced?: number;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// --- Finished inventory (post-production stock) ---
-export interface FinishedInventoryItem {
-  id: string;
-  name: string;
-  sku?: string;
-  /** Optional link to a release plan */
-  release_id?: string;
-  quantity_on_hand: number;
-  reserved_quantity: number;
-  location?: string;
-  /** Shopify product / variant when synced */
-  product_id?: string;
-  variant_id?: string;
-  batch_id?: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// --- Releases (launch pipeline) ---
-export const RELEASE_STATUSES = [
-  "concept",
-  "formula_development",
-  "testing",
-  "swatcher_phase",
-  "photography",
-  "marketing",
-  "launch_ready",
-  "live",
-  "archived",
-] as const;
-
-export type ReleaseStatus =
-  | "concept"
-  | "formula_development"
-  | "testing"
-  | "swatcher_phase"
-  | "photography"
-  | "marketing"
-  | "launch_ready"
-  | "live"
-  | "archived";
-
-export interface Release {
-  id: string;
-  name: string;
-  collection?: string;
-  description?: string;
-  status: ReleaseStatus;
-  target_launch_date?: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-/** Polish / shade row under a release */
-export interface ReleasePolish {
-  id: string;
-  release_id: string;
   name: string;
   sort_order: number;
+  /** Swatch color for the UI, e.g. "#cb508f". */
+  color_hex?: string;
+  notes?: string;
   created_at: string;
   updated_at: string;
 }
@@ -150,81 +65,16 @@ export interface PolishRecipeLine {
   updated_at: string;
 }
 
-// --- Swatchers (testers for new shades) ---
-export interface Swatcher {
+// --- Finished stock ---
+export interface FinishedInventoryItem {
   id: string;
   name: string;
-  email?: string;
-  social_handle?: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface SwatcherAssignment {
-  id: string;
-  swatcher_id: string;
-  release_id: string;
-  shade_name?: string;
-  status?: "pending" | "sent" | "received" | "feedback";
-  sent_at?: string;
-  feedback_notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// --- Social media planning ---
-export type SocialPlatform = "instagram" | "tiktok" | "twitter" | "other";
-
-export interface SocialPost {
-  id: string;
-  platform: SocialPlatform;
-  content_type?: string;
-  scheduled_at?: string;
-  published_at?: string;
-  status: "draft" | "scheduled" | "published" | "cancelled";
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// --- Retail partners ---
-export interface RetailPartner {
-  id: string;
-  name: string;
-  contact_email?: string;
-  contact_phone?: string;
-  address?: string;
-  status?: "active" | "inactive" | "pending";
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// --- Events / expos ---
-export interface Event {
-  id: string;
-  name: string;
-  event_type?: string;
-  start_date: string;
-  end_date?: string;
+  sku?: string;
+  /** Which polish/recipe this stock is — the link back to Recipes. */
+  polish_id?: string;
+  quantity_on_hand: number;
+  reserved_quantity: number;
   location?: string;
-  booth?: string;
-  status?: "planned" | "confirmed" | "completed" | "cancelled";
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// --- Charity polish tracking ---
-export interface CharityPolish {
-  id: string;
-  name: string;
-  product_id?: string;
-  charity_name: string;
-  donation_per_unit?: number;
-  total_raised?: number;
-  status?: "active" | "completed" | "paused";
   notes?: string;
   created_at: string;
   updated_at: string;

@@ -7,87 +7,22 @@ import { useAdminLayout } from "@/components/admin/AdminLayoutContext";
 type NavItem = {
   href: string;
   label: string;
-  /** When set, controls active state (e.g. avoid highlighting Releases on polish recipe URLs). */
-  isActive?: (pathname: string) => boolean;
+  icon: string;
 };
 
-function defaultNavActive(href: string, pathname: string): boolean {
-  if (pathname === href) return true;
+function isNavActive(href: string, pathname: string): boolean {
   if (href === "/admin") return pathname === "/admin";
-  return pathname.startsWith(`${href}/`);
-}
-
-/** Release list/detail only — not /admin/releases/:id/polishes/... */
-function isReleasesNavActive(pathname: string): boolean {
-  if (pathname === "/admin/releases") return true;
-  if (!pathname.startsWith("/admin/releases/")) return false;
-  return !pathname.includes("/polishes/");
-}
-
-/** Polishes index + any polish/recipe page under a release */
-function isPolishesNavActive(pathname: string): boolean {
-  if (pathname === "/admin/polishes") return true;
-  if (pathname.startsWith("/admin/polishes/")) return true;
-  return /\/admin\/releases\/[^/]+\/polishes(\/|$)/.test(pathname);
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 /**
- * Admin sidebar with grouped navigation.
- * Future: requireAdmin() guard, collapse sections on mobile.
+ * Minimal admin nav: the three questions this tool answers, plus Settings.
  */
-const adminNavGroups: { label: string; items: NavItem[] }[] = [
-  {
-    label: "Overview",
-    items: [{ href: "/admin", label: "Dashboard" }],
-  },
-  {
-    label: "Shopify",
-    items: [
-      { href: "/admin/orders", label: "Orders" },
-      { href: "/admin/customers", label: "Customers" },
-      { href: "/admin/products", label: "Products" },
-    ],
-  },
-  {
-    label: "Inventory",
-    items: [
-      { href: "/admin/inventory", label: "Finished Goods" },
-      { href: "/admin/ingredients", label: "Ingredients" },
-      { href: "/admin/pigments", label: "Pigments" },
-      { href: "/admin/supplies", label: "Supplies" },
-    ],
-  },
-  {
-    label: "Production",
-    items: [
-      { href: "/admin/batches", label: "Batches" },
-      { href: "/admin/releases", label: "Releases", isActive: isReleasesNavActive },
-      { href: "/admin/polishes", label: "Polishes", isActive: isPolishesNavActive },
-      { href: "/admin/swatchers", label: "Swatchers" },
-    ],
-  },
-  {
-    label: "Marketing & Sales",
-    items: [
-      { href: "/admin/social", label: "Social" },
-      { href: "/admin/retail-partners", label: "Retail Partners" },
-      { href: "/admin/events", label: "Events" },
-      { href: "/admin/charity", label: "Charity" },
-    ],
-  },
-  {
-    label: "Community",
-    items: [
-      { href: "/admin/community", label: "Overview" },
-      { href: "/admin/community/reports", label: "Reports" },
-      { href: "/admin/community/channels", label: "Channels" },
-      { href: "/admin/community/moderation", label: "Moderation" },
-    ],
-  },
-  {
-    label: "Settings",
-    items: [{ href: "/admin/settings", label: "Settings" }],
-  },
+const adminNavItems: NavItem[] = [
+  { href: "/admin", label: "Dashboard", icon: "◆" },
+  { href: "/admin/inventory", label: "Finished Stock", icon: "●" },
+  { href: "/admin/ingredients", label: "Ingredients", icon: "◈" },
+  { href: "/admin/polishes", label: "Polishes", icon: "◐" },
 ];
 
 export function AdminSidebar() {
@@ -96,41 +31,37 @@ export function AdminSidebar() {
 
   const navContent = (
     <nav aria-label="Admin navigation">
-      {adminNavGroups.map((group) => (
-        <div key={group.label} className="mb-4">
-          <p className="px-4 mb-2 text-xs font-medium text-white/50 uppercase tracking-wider">
-            {group.label}
-          </p>
-          <ul className="space-y-1">
-            {group.items.map((item) => {
-              const isActive = item.isActive
-                ? item.isActive(pathname)
-                : defaultNavActive(item.href, pathname);
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`block px-4 py-2 rounded-lg transition-colors ${
-                      isActive
-                        ? "bg-teal text-white"
-                        : "text-white/80 hover:bg-ink/80 hover:text-white"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
-      <div className="mt-8 px-6">
+      <ul className="space-y-1 px-3">
+        {adminNavItems.map((item) => {
+          const isActive = isNavActive(item.href, pathname);
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  isActive
+                    ? "bg-gradient-to-r from-teal to-plum text-white shadow-sm"
+                    : "text-white/80 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <span className="text-cyan/90 w-4 text-center" aria-hidden="true">
+                  {item.icon}
+                </span>
+                {item.label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-6 px-6 pt-6 border-t border-white/10">
         <Link
-          href="/"
-          className="text-sm text-white/60 hover:text-cyan transition-colors"
+          href="/admin/settings"
+          className={`text-sm transition-colors ${
+            isNavActive("/admin/settings", pathname) ? "text-cyan" : "text-white/60 hover:text-cyan"
+          }`}
         >
-          ← Back to Store
+          Settings
         </Link>
       </div>
     </nav>
@@ -158,8 +89,10 @@ export function AdminSidebar() {
       >
         <div className="sticky top-0 py-6 overflow-y-auto h-full">
           <Link href="/admin" className="block px-6 mb-6">
-            <span className="font-bold text-lg">Twinkle & Hex</span>
-            <span className="block text-sm text-white/60">Admin</span>
+            <span className="font-bold text-lg bg-gradient-to-r from-cyan to-magenta bg-clip-text text-transparent">
+              Twinkle &amp; Hex
+            </span>
+            <span className="block text-sm text-white/60">Ops</span>
           </Link>
           {navContent}
         </div>

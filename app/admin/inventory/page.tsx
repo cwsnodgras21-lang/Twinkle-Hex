@@ -1,36 +1,28 @@
 import Link from "next/link";
-import { AdminPageShell, TableShell, FiltersBar, EmptyState } from "@/components/admin";
-import { listFinishedInventoryItems } from "@/lib/admin/inventory";
+import { AdminPageShell, TableShell, EmptyState, StatusBadge } from "@/components/admin";
+import { PolishSwatch } from "@/components/admin/polishes";
+import { listFinishedInventoryItemsWithPolish } from "@/lib/admin/inventory";
 
 export default async function AdminInventoryPage() {
-  let items: Awaited<ReturnType<typeof listFinishedInventoryItems>> = [];
+  let items: Awaited<ReturnType<typeof listFinishedInventoryItemsWithPolish>> = [];
   let loadError: string | null = null;
   try {
-    items = await listFinishedInventoryItems();
+    items = await listFinishedInventoryItemsWithPolish();
   } catch (e) {
-    loadError =
-      e instanceof Error ? e.message : "Could not load inventory (check Supabase table).";
+    loadError = e instanceof Error ? e.message : "Could not load stock (check Supabase table).";
   }
 
   return (
     <AdminPageShell
-      title="Finished Goods Inventory"
-      description="Stock levels for finished products. Optional link to a release for launch planning."
+      title="Finished Stock"
+      description="What we actually have bottled and ready to sell — with a link back to the recipe it's made from."
       actions={
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/admin/inventory/new"
-            className="inline-flex px-4 py-2 bg-teal text-white rounded-lg hover:opacity-90 text-sm font-medium"
-          >
-            New inventory item
-          </Link>
-          <Link
-            href="/admin/ingredients"
-            className="text-sm text-teal hover:underline self-center"
-          >
-            Ingredients →
-          </Link>
-        </div>
+        <Link
+          href="/admin/inventory/new"
+          className="inline-flex px-4 py-2 bg-teal text-white rounded-lg hover:opacity-90 text-sm font-medium transition-colors"
+        >
+          New stock item
+        </Link>
       }
     >
       {loadError && (
@@ -38,35 +30,58 @@ export default async function AdminInventoryPage() {
           {loadError}
         </div>
       )}
-      <FiltersBar />
-      <div className="bg-white border border-ink/10 rounded-lg overflow-hidden">
+      <div className="bg-white border border-ink/10 rounded-xl overflow-hidden shadow-sm">
         <TableShell
-          headers={["Name", "SKU", "Qty", "Reserved", "Location"]}
+          headers={["Name", "Recipe", "SKU", "On hand", "Reserved", "Available", "Location"]}
           empty={items.length === 0 && !loadError}
           emptyContent={
             <EmptyState
-              title="No inventory items yet"
-              description="Add finished goods to track stock. Run migration 003 in Supabase if inserts fail."
+              title="No stock items yet"
+              description="Add finished polish stock to start tracking what's ready to sell."
               action={
                 <Link
                   href="/admin/inventory/new"
                   className="inline-flex px-4 py-2 bg-teal text-white rounded-lg hover:opacity-90"
                 >
-                  New inventory item
+                  New stock item
                 </Link>
               }
             />
           }
         >
-          {items.map((row) => (
-            <tr key={row.id}>
-              <td className="px-4 py-3 font-medium text-ink">{row.name}</td>
-              <td className="px-4 py-3 text-ink/70 font-mono text-sm">{row.sku ?? "—"}</td>
-              <td className="px-4 py-3 text-ink/70">{row.quantity_on_hand}</td>
-              <td className="px-4 py-3 text-ink/70">{row.reserved_quantity}</td>
-              <td className="px-4 py-3 text-ink/70">{row.location ?? "—"}</td>
-            </tr>
-          ))}
+          {items.map((row) => {
+            const available = row.quantity_on_hand - row.reserved_quantity;
+            const isLow = available <= 0;
+            return (
+              <tr key={row.id} className="hover:bg-ink/[0.02] transition-colors">
+                <td className="px-4 py-3 font-medium text-ink">{row.name}</td>
+                <td className="px-4 py-3">
+                  {row.polish_id ? (
+                    <Link
+                      href={`/admin/polishes/${row.polish_id}`}
+                      className="inline-flex items-center gap-2 text-teal hover:underline"
+                    >
+                      <PolishSwatch colorHex={row.polish_color_hex} size="sm" />
+                      {row.polish_name}
+                    </Link>
+                  ) : (
+                    <span className="text-ink/40">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-ink/70 font-mono text-sm">{row.sku ?? "—"}</td>
+                <td className="px-4 py-3 text-ink/80 tabular-nums">{row.quantity_on_hand}</td>
+                <td className="px-4 py-3 text-ink/70 tabular-nums">{row.reserved_quantity}</td>
+                <td className="px-4 py-3">
+                  {isLow ? (
+                    <StatusBadge label={`${available} left`} variant="warning" />
+                  ) : (
+                    <span className="tabular-nums text-ink/80">{available}</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-ink/70">{row.location ?? "—"}</td>
+              </tr>
+            );
+          })}
         </TableShell>
       </div>
     </AdminPageShell>

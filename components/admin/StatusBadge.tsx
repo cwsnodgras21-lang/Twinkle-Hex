@@ -14,7 +14,7 @@ const variantStyles: Record<StatusVariant, string> = {
 };
 
 /**
- * Status badge for orders, batches, releases, etc.
+ * Status badge for stock levels, ingredient health, etc.
  */
 export function StatusBadge({ label, variant = "neutral" }: StatusBadgeProps) {
   return (

@@ -14,8 +14,8 @@ export default async function AdminSettingsPage() {
         <section>
           <h2 className="text-lg font-semibold text-ink mb-2">Admin users</h2>
           <p className="text-sm text-ink/70 mb-4">
-            Anyone added here gets full access to this dashboard - orders, inventory,
-            recipes, and everything else under /admin.
+            Anyone added here gets full access to this dashboard — finished stock,
+            ingredients, and polish recipes.
           </p>
 
           <div className="bg-white border border-ink/10 rounded-lg divide-y divide-ink/10 mb-4">
@@ -40,7 +40,7 @@ export default async function AdminSettingsPage() {
 
         <section>
           <h2 className="text-lg font-semibold text-ink mb-2">Integrations</h2>
-          <p className="text-sm text-ink/70">Shopify, Supabase, and other integrations will be configured here.</p>
+          <p className="text-sm text-ink/70">Supabase powers auth and storage. No other integrations are configured.</p>
         </section>
       </div>
     </AdminPageShell>

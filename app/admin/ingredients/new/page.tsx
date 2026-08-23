@@ -1,35 +1,35 @@
 import Link from "next/link";
 import { AdminPageShell, FormShell } from "@/components/admin";
-import { IngredientForm } from "@/components/admin/ingredients/IngredientForm";
+import { IngredientForm } from "@/components/admin/ingredients";
+import type { IngredientCategory } from "@/types/admin";
 
-export default function NewIngredientPage() {
+interface Props {
+  searchParams: Promise<{ category?: string }>;
+}
+
+export default async function NewIngredientPage({ searchParams }: Props) {
+  const { category } = await searchParams;
+  const defaultCategory: IngredientCategory | undefined =
+    category === "ingredient" || category === "pigment" || category === "supply"
+      ? (category as IngredientCategory)
+      : undefined;
+
   return (
-    <AdminPageShell
-      title="Add Ingredient"
-      description="Create a new raw material entry."
-    >
+    <AdminPageShell title="New Ingredient" description="Add a raw ingredient, pigment, or supply.">
+      <div className="mb-6">
+        <Link href="/admin/ingredients" className="text-sm text-teal hover:underline">
+          ← Back to ingredients
+        </Link>
+      </div>
       <FormShell
         title="Ingredient details"
-        description="Basic info for tracking inventory."
         actions={
-          <>
-            <button
-              type="submit"
-              form="ingredient-form"
-              className="px-4 py-2 bg-teal text-white rounded-lg hover:opacity-90"
-            >
-              Save
-            </button>
-            <Link
-              href="/admin/ingredients"
-              className="px-4 py-2 border border-ink/20 rounded-lg hover:bg-ink/5"
-            >
-              Cancel
-            </Link>
-          </>
+          <Link href="/admin/ingredients" className="px-4 py-2 border border-ink/20 rounded-lg hover:bg-ink/5">
+            Cancel
+          </Link>
         }
       >
-        <IngredientForm mode="create" />
+        <IngredientForm mode="create" defaultCategory={defaultCategory} />
       </FormShell>
     </AdminPageShell>
   );

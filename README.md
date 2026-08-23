@@ -1,6 +1,9 @@
-# Twinkle & Hex
+# Twinkle & Hex Ops
 
-Production-ready web platform for an indie nail polish brand. Built with Next.js 14+, TypeScript, Tailwind CSS, and Supabase.
+A lean internal admin tool for an indie nail polish brand. It answers three
+questions and nothing else: what's in finished stock, what's in ingredients
+(raw materials, pigments, and supplies), and how each polish is made.
+Built with Next.js 14+, TypeScript, Tailwind CSS, and Supabase.
 
 ## Tech Stack
 
@@ -12,26 +15,36 @@ Production-ready web platform for an indie nail polish brand. Built with Next.js
 
 ## Project Structure
 
+The app is organized around its three gravitational centers — Stock,
+Ingredients, and Polishes/Recipes — instead of one route per sub-feature.
+
 ```
 ├── app/
-│   ├── (customer)/          # Public & customer-facing pages
-│   │   ├── shop/
-│   │   ├── about/
-│   │   ├── account/
-│   │   └── community/
-│   ├── admin/               # Admin dashboard
+│   ├── admin/
+│   │   ├── page.tsx          # Dashboard: stock, low ingredients, recent recipes
+│   │   ├── inventory/        # Finished Stock
+│   │   ├── ingredients/      # Ingredients (raw materials, pigments, supplies)
+│   │   ├── polishes/         # Polishes — recipe lives on the polish's own page
+│   │   ├── settings/         # Admin user management
+│   │   └── actions.ts        # Server actions for all three areas
+│   ├── login/                # Admin sign-in
 │   ├── globals.css
-│   └── layout.tsx
+│   ├── layout.tsx
+│   └── page.tsx              # Redirects to /admin
 ├── components/
-│   └── layout/              # Header, Footer, AdminSidebar, etc.
+│   ├── admin/
+│   │   ├── ingredients/      # IngredientForm, MsdsDocumentsPanel
+│   │   ├── inventory/        # InventoryForm
+│   │   ├── polishes/         # PolishForm, RecipeEditor, PolishDetail, PolishSwatch
+│   │   └── ...                # Shared shell components (AdminPageShell, TableShell, ...)
+│   └── layout/                # AdminSidebar
 ├── lib/
-│   ├── auth/                # Auth helpers, roles
-│   ├── api/                 # Data access layer
-│   └── shopify/             # Shopify integration (placeholder)
+│   ├── admin/                 # Data layer: ingredients.ts, polishes.ts, inventory.ts
+│   └── auth/                  # Auth helpers, roles
 ├── types/
+│   └── admin.ts                # Ingredient, Polish, PolishRecipeLine, FinishedInventoryItem
 ├── hooks/
-├── styles/
-├── supabase/                # Supabase clients (browser, server, middleware)
+├── supabase/                   # Supabase clients (browser, server, middleware) + migrations
 └── public/
 ```
 
@@ -78,8 +91,6 @@ Production-ready web platform for an indie nail polish brand. Built with Next.js
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Your Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous (public) key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-only key used for admin writes and MSDS storage. **Never** expose this to the browser. |
-| `NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN` | Future | Shopify store domain |
-| `SHOPIFY_STOREFRONT_ACCESS_TOKEN` | Future | Shopify Storefront API token |
 
 ## Admin Access
 
@@ -94,10 +105,13 @@ set raw_app_meta_data = raw_app_meta_data || '{"role": "admin"}'::jsonb
 where email = 'you@example.com';
 ```
 
-Then run the migration in `supabase/migrations/011_admin_role_rls.sql`
-against your project (SQL editor or CLI) - it locks every admin table's Row
-Level Security down to that claim, replacing the earlier MVP policies that
-allowed full read/write access to anyone holding the public anon key.
+Then run the migrations in `supabase/migrations/` against your project (SQL
+editor or CLI), in numeric order. `011_admin_role_rls.sql` locks every admin
+table's Row Level Security down to that claim, replacing the earlier MVP
+policies that allowed full read/write access to anyone holding the public
+anon key. `012_simplify_to_core_ops.sql` folds ingredients/pigments/supplies
+into one `ingredients` table, drops the Releases/Batches/Marketing/Community
+tables, and repoints finished stock and polishes accordingly.
 
 Sign in at `/login`. There is no public self-serve signup for admin - create
 additional users via the Supabase dashboard (Authentication → Users → Invite)
@@ -111,10 +125,3 @@ and promote them with the SQL above.
 - **Plum:** `#59486d`
 - **Magenta:** `#cb508f`
 
-## Future Phases
-
-- Customer-facing storefront (product catalog, cart, checkout)
-- Admin dashboard (products, orders, customers, inventory)
-- Community/forum area
-- Shopify integration
-- Auth (Supabase) with role-based access
