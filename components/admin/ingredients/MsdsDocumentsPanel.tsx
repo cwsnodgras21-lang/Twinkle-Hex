@@ -39,13 +39,14 @@ export function MsdsDocumentsPanel({ ingredientId, documents }: MsdsDocumentsPan
 
   async function handleUpload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const form = e.currentTarget;
     setError(null);
     setUploadPending(true);
     try {
-      const formData = new FormData(e.currentTarget);
+      const formData = new FormData(form);
       const result = await uploadIngredientMsdsAction(ingredientId, formData);
       if (result.ok) {
-        e.currentTarget.reset();
+        form.reset();
         router.refresh();
       } else {
         setError(result.error);

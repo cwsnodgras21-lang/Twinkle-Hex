@@ -2,8 +2,7 @@
  * Ops settings — documented defaults for batch size and lead times.
  */
 
-import { createClient } from "@/supabase/server";
-import { resolveWriteClient, num } from "@/lib/admin/supabase-write";
+import { resolveWriteClient, resolveDataClient, num } from "@/lib/admin/supabase-write";
 import type { OpsSettings } from "@/types/admin";
 import { DEFAULT_BATCH_OZ, DEFAULT_LEAD_TIMES, DEFAULT_PRODUCTION_WEEKDAYS } from "@/lib/ops";
 
@@ -47,7 +46,7 @@ function mapRow(row: Record<string, unknown>): OpsSettings {
 
 export async function getOpsSettings(): Promise<OpsSettings> {
   try {
-    const supabase = await createClient();
+    const supabase = await resolveDataClient();
     const { data, error } = await supabase.from("ops_settings").select("*").eq("id", 1).maybeSingle();
     if (error || !data) return FALLBACK_OPS_SETTINGS;
     return mapRow(data as Record<string, unknown>);

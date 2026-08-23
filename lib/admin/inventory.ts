@@ -5,8 +5,7 @@
  * island — you can see what a bottle actually is at a glance.
  */
 
-import { createAdminClient } from "@/supabase/admin";
-import { createClient } from "@/supabase/server";
+import { resolveDataClient, resolveWriteClient } from "@/lib/admin/supabase-write";
 import type { FinishedInventoryItem } from "@/types/admin";
 
 function mapRow(row: Record<string, unknown>): FinishedInventoryItem {
@@ -25,7 +24,7 @@ function mapRow(row: Record<string, unknown>): FinishedInventoryItem {
 }
 
 export async function listFinishedInventoryItems(): Promise<FinishedInventoryItem[]> {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   const { data, error } = await supabase
     .from("finished_inventory_items")
     .select("*")
@@ -42,7 +41,7 @@ export type FinishedInventoryItemWithPolish = FinishedInventoryItem & {
 
 /** Stock list joined with the polish it's made from, for the "what is this bottle" glance. */
 export async function listFinishedInventoryItemsWithPolish(): Promise<FinishedInventoryItemWithPolish[]> {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   const { data, error } = await supabase
     .from("finished_inventory_items")
     .select("*, polishes ( name, color_hex )")
@@ -69,7 +68,7 @@ export type CreateFinishedInventoryItemInput = Omit<
 export async function createFinishedInventoryItem(
   input: CreateFinishedInventoryItemInput
 ): Promise<FinishedInventoryItem> {
-  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : await createClient();
+  const supabase = await resolveWriteClient();
   const { data, error } = await supabase
     .from("finished_inventory_items")
     .insert({
@@ -94,7 +93,7 @@ export async function updateFinishedInventoryItem(
   id: string,
   input: UpdateFinishedInventoryItemInput
 ): Promise<FinishedInventoryItem> {
-  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : await createClient();
+  const supabase = await resolveWriteClient();
   const { data, error } = await supabase
     .from("finished_inventory_items")
     .update({
@@ -115,7 +114,7 @@ export async function updateFinishedInventoryItem(
 }
 
 export async function deleteFinishedInventoryItem(id: string): Promise<void> {
-  const supabase = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : await createClient();
+  const supabase = await resolveWriteClient();
   const { error } = await supabase.from("finished_inventory_items").delete().eq("id", id);
   if (error) throw error;
 }

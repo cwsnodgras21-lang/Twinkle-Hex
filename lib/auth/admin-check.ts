@@ -17,7 +17,7 @@ import type { User } from "@supabase/supabase-js";
  */
 // TEMP: login enforcement disabled while there's no admin data/setup yet.
 // Revert this to `return user?.app_metadata?.role === "admin";` to turn login back on.
-const ADMIN_LOGIN_DISABLED = true;
+export const ADMIN_LOGIN_DISABLED = true;
 
 export function isUserAdmin(user: User | null): boolean {
   if (ADMIN_LOGIN_DISABLED) return true;

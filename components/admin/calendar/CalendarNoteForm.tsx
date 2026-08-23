@@ -20,12 +20,13 @@ export function CalendarNoteForm({
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end"
       onSubmit={(e) => {
         e.preventDefault();
-        const fd = new FormData(e.currentTarget);
+        const form = e.currentTarget;
+        const fd = new FormData(form);
         setError(null);
         startTransition(async () => {
           const result = await createCalendarNoteAction(fd);
           if (result.ok) {
-            e.currentTarget.reset();
+            form.reset();
             router.refresh();
           } else setError(result.error);
         });

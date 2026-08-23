@@ -54,7 +54,7 @@ function mapLineRow(row: Record<string, unknown>): PolishRecipeLine {
 }
 
 export async function listPolishes(): Promise<Polish[]> {
-  const supabase = await createClient();
+  const supabase = await resolveWriteClient();
   const { data, error } = await supabase
     .from("polishes")
     .select("*")
@@ -69,7 +69,7 @@ export type PolishWithLineCount = Polish & { line_count: number };
 
 /** Polishes for the list view, with a recipe-line count so the table shows "has a recipe yet?" at a glance. */
 export async function listPolishesWithLineCount(): Promise<PolishWithLineCount[]> {
-  const supabase = await createClient();
+  const supabase = await resolveWriteClient();
   const { data, error } = await supabase
     .from("polishes")
     .select("*, polish_recipe_lines(count)")
@@ -91,7 +91,7 @@ export type PolishDetail = {
 };
 
 export async function getPolishDetail(polishId: string): Promise<PolishDetail | null> {
-  const supabase = await createClient();
+  const supabase = await resolveWriteClient();
   const { data: row, error } = await supabase
     .from("polishes")
     .select("*")
@@ -120,7 +120,7 @@ export async function getPolishDetail(polishId: string): Promise<PolishDetail | 
 }
 
 export async function getPolishById(id: string): Promise<Polish | null> {
-  const supabase = await createClient();
+  const supabase = await resolveWriteClient();
   const { data, error } = await supabase.from("polishes").select("*").eq("id", id).single();
 
   if (error) {
