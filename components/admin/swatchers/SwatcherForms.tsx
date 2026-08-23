@@ -33,12 +33,13 @@ export function SwatcherForms({
         className="bg-white border border-ink/10 rounded-xl p-5 shadow-sm space-y-3"
         onSubmit={(e) => {
           e.preventDefault();
-          const fd = new FormData(e.currentTarget);
+          const form = e.currentTarget;
+          const fd = new FormData(form);
           setError(null);
           startTransition(async () => {
             const result = await createSwatcherAction(fd);
             if (result.ok) {
-              e.currentTarget.reset();
+              form.reset();
               router.refresh();
             } else setError(result.error);
           });
@@ -57,12 +58,13 @@ export function SwatcherForms({
         className="bg-white border border-ink/10 rounded-xl p-5 shadow-sm space-y-3"
         onSubmit={(e) => {
           e.preventDefault();
-          const fd = new FormData(e.currentTarget);
+          const form = e.currentTarget;
+          const fd = new FormData(form);
           setError(null);
           startTransition(async () => {
             const result = await createAssignmentAction(fd);
             if (result.ok) {
-              e.currentTarget.reset();
+              form.reset();
               router.refresh();
             } else setError(result.error);
           });

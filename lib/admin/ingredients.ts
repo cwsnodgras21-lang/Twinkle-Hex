@@ -71,7 +71,7 @@ function sanitizeFileName(name: string): string {
 }
 
 export async function listIngredients(category?: IngredientCategory): Promise<Ingredient[]> {
-  const supabase = await createClient();
+  const supabase = await resolveWriteClient();
   let query = supabase.from("ingredients").select("*").order("name", { ascending: true });
   if (category) query = query.eq("category", category);
 
@@ -81,7 +81,7 @@ export async function listIngredients(category?: IngredientCategory): Promise<In
 }
 
 export async function getIngredientById(id: string): Promise<Ingredient | null> {
-  const supabase = await createClient();
+  const supabase = await resolveWriteClient();
   const { data, error } = await supabase.from("ingredients").select("*").eq("id", id).single();
 
   if (error) {
@@ -182,7 +182,7 @@ export async function deleteIngredient(id: string): Promise<void> {
 // --- MSDS / SDS documents (mainly for pigments) ---
 
 export async function listIngredientMsdsDocuments(ingredientId: string): Promise<IngredientMsdsDocument[]> {
-  const supabase = await createClient();
+  const supabase = await resolveWriteClient();
   const { data, error } = await supabase
     .from("ingredient_msds_documents")
     .select("*")
@@ -296,7 +296,7 @@ export async function countIngredientMsdsDocuments(ingredientIds: string[]): Pro
   const counts = new Map<string, number>();
   if (ingredientIds.length === 0) return counts;
 
-  const supabase = await createClient();
+  const supabase = await resolveWriteClient();
   const { data, error } = await supabase
     .from("ingredient_msds_documents")
     .select("ingredient_id")

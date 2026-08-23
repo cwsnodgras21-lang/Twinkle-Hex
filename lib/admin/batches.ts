@@ -2,8 +2,7 @@
  * Production batches — execution history with immutable formula snapshots.
  */
 
-import { createClient } from "@/supabase/server";
-import { resolveWriteClient, num } from "@/lib/admin/supabase-write";
+import { resolveWriteClient, resolveDataClient, num } from "@/lib/admin/supabase-write";
 import { getPolishDetail } from "@/lib/admin/polishes";
 import { getIngredientById } from "@/lib/admin/ingredients";
 import {
@@ -38,7 +37,7 @@ function mapBatch(row: Record<string, unknown>): ProductionBatch {
 }
 
 export async function listBatchesForPolish(polishId: string): Promise<ProductionBatch[]> {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   const { data, error } = await supabase
     .from("production_batches")
     .select("*")
@@ -51,7 +50,7 @@ export async function listBatchesForPolish(polishId: string): Promise<Production
 export async function listRecentBatches(limit = 50): Promise<
   Array<ProductionBatch & { polish_name?: string }>
 > {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   const { data, error } = await supabase
     .from("production_batches")
     .select("*, polishes ( name )")
@@ -182,7 +181,7 @@ export async function completeProductionBatch(
 }
 
 export async function getProductionBatch(id: string): Promise<ProductionBatch | null> {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   const { data, error } = await supabase.from("production_batches").select("*").eq("id", id).single();
   if (error) {
     if (error.code === "PGRST116") return null;

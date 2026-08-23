@@ -2,8 +2,7 @@
  * Swatcher workflow — timeline-oriented, release-linked.
  */
 
-import { createClient } from "@/supabase/server";
-import { resolveWriteClient } from "@/lib/admin/supabase-write";
+import { resolveWriteClient, resolveDataClient } from "@/lib/admin/supabase-write";
 import type { Swatcher, SwatcherAssignment, SwatcherAssignmentStatus } from "@/types/admin";
 
 function mapSwatcher(row: Record<string, unknown>): Swatcher {
@@ -37,7 +36,7 @@ function mapAssignment(row: Record<string, unknown>): SwatcherAssignment {
 }
 
 export async function listSwatchers(): Promise<Swatcher[]> {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   const { data, error } = await supabase.from("swatchers").select("*").order("name", { ascending: true });
   if (error) throw error;
   return (data ?? []).map((r) => mapSwatcher(r as Record<string, unknown>));
@@ -82,7 +81,7 @@ export type AssignmentWithNames = SwatcherAssignment & {
 };
 
 export async function listSwatcherAssignments(releaseId?: string): Promise<AssignmentWithNames[]> {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   let query = supabase
     .from("swatcher_assignments")
     .select("*, swatchers ( name ), releases ( name ), polishes ( name )")

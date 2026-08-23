@@ -14,6 +14,9 @@ export async function resolveWriteClient() {
   return client instanceof Promise ? await client : client;
 }
 
+/** Admin reads use the same server client as writes so /admin works while login is disabled. */
+export const resolveDataClient = resolveWriteClient;
+
 export function num(v: unknown, fallback = 0): number {
   if (typeof v === "number" && !Number.isNaN(v)) return v;
   const n = Number(v);

@@ -2,8 +2,7 @@
  * Thin calendar notes — optional marketing milestones only.
  */
 
-import { createClient } from "@/supabase/server";
-import { resolveWriteClient } from "@/lib/admin/supabase-write";
+import { resolveWriteClient, resolveDataClient } from "@/lib/admin/supabase-write";
 import type { OpsCalendarItem, OpsCalendarItemKind } from "@/types/admin";
 
 function mapRow(row: Record<string, unknown>): OpsCalendarItem {
@@ -21,7 +20,7 @@ function mapRow(row: Record<string, unknown>): OpsCalendarItem {
 }
 
 export async function listCalendarNotes(from: string, to: string): Promise<OpsCalendarItem[]> {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   const { data, error } = await supabase
     .from("ops_calendar_items")
     .select("*")

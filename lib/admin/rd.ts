@@ -3,8 +3,7 @@
  * Approving a prototype promotes the linked ingredient to `approved`.
  */
 
-import { createClient } from "@/supabase/server";
-import { resolveWriteClient } from "@/lib/admin/supabase-write";
+import { resolveWriteClient, resolveDataClient } from "@/lib/admin/supabase-write";
 import { updateIngredient } from "@/lib/admin/ingredients";
 import type { RdPrototype, RdPrototypeStatus } from "@/types/admin";
 
@@ -26,13 +25,16 @@ function mapRow(row: Record<string, unknown>): RdPrototype {
 export async function listRdPrototypes(): Promise<
   Array<RdPrototype & { ingredient_name?: string; ingredient_lifecycle?: string }>
 > {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   const { data, error } = await supabase
     .from("rd_prototypes")
     .select("*, ingredients ( name, lifecycle_status )")
     .order("review_date", { ascending: true, nullsFirst: false })
     .order("name", { ascending: true });
-  if (error) throw error;
+  if (error) {
+    console.error("listRdPrototypes", error.message, error.code, error.details, error.hint);
+    throw error;
+  }
   return (data ?? []).map((row: Record<string, unknown>) => {
     const base = mapRow(row);
     const ing = row.ingredients as { name?: string; lifecycle_status?: string } | null;
@@ -47,7 +49,7 @@ export async function listRdPrototypes(): Promise<
 export async function getRdPrototype(id: string): Promise<
   (RdPrototype & { ingredient_name?: string; ingredient_lifecycle?: string }) | null
 > {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   const { data, error } = await supabase
     .from("rd_prototypes")
     .select("*, ingredients ( name, lifecycle_status )")

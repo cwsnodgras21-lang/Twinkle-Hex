@@ -3,8 +3,7 @@
  * Polishes remain standalone; this is a join, not ownership.
  */
 
-import { createClient } from "@/supabase/server";
-import { resolveWriteClient, num } from "@/lib/admin/supabase-write";
+import { resolveWriteClient, resolveDataClient, num } from "@/lib/admin/supabase-write";
 import { coalesceReleaseDeadlines, type LeadTimeDefaults } from "@/lib/ops/release-deadlines";
 import { getOpsSettings } from "@/lib/admin/ops-settings";
 import type {
@@ -55,18 +54,21 @@ async function leadTimes(): Promise<LeadTimeDefaults> {
 }
 
 export async function listReleases(): Promise<Release[]> {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   const { data, error } = await supabase
     .from("releases")
     .select("*")
     .order("target_launch_date", { ascending: true, nullsFirst: false })
     .order("name", { ascending: true });
-  if (error) throw error;
+  if (error) {
+    console.error("listReleases", error.message, error.code, error.details, error.hint);
+    throw error;
+  }
   return (data ?? []).map((r) => mapRelease(r as Record<string, unknown>));
 }
 
 export async function getReleaseById(id: string): Promise<Release | null> {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   const { data, error } = await supabase.from("releases").select("*").eq("id", id).single();
   if (error) {
     if (error.code === "PGRST116") return null;
@@ -83,7 +85,7 @@ export type ReleasePolishWithPolish = ReleasePolish & {
 };
 
 export async function listReleasePolishes(releaseId: string): Promise<ReleasePolishWithPolish[]> {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   const { data, error } = await supabase
     .from("release_polishes")
     .select("*, polishes ( name, color_hex, formula_version )")
@@ -262,7 +264,7 @@ export async function countRemainingBatchesForRelease(releaseId: string): Promis
   remainingBatches: number;
   missingFormulaCount: number;
 }> {
-  const supabase = await createClient();
+  const supabase = await resolveDataClient();
   const members = await listReleasePolishes(releaseId);
   let missingFormulaCount = 0;
   for (const m of members) {
