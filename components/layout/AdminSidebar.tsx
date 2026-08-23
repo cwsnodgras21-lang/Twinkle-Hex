@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAdminLayout } from "@/components/admin/AdminLayoutContext";
@@ -92,10 +93,15 @@ export function AdminSidebar() {
       >
         <div className="sticky top-0 py-6 overflow-y-auto h-full">
           <Link href="/admin" className="block px-6 mb-6">
-            <span className="font-display font-bold text-lg bg-gradient-to-r from-dash-pink to-dash-purple bg-clip-text text-transparent">
-              Twinkle &amp; Hex
-            </span>
-            <span className="block text-sm text-dash-navyText">Ops</span>
+            <Image
+              src="/logo.png"
+              alt="Twinkle & Hex Polish"
+              width={160}
+              height={160}
+              className="w-28 h-auto"
+              priority
+            />
+            <span className="block text-sm text-dash-navyText mt-1">Ops</span>
           </Link>
           {navContent}
         </div>
