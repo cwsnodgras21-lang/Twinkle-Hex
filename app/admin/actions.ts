@@ -23,6 +23,7 @@ import {
   deleteIngredient,
   deleteIngredientMsdsDocument,
   getIngredientMsdsSignedUrl,
+  linkIngredientGoogleDriveSds,
   updateIngredient,
   uploadIngredientMsdsDocument,
 } from "@/lib/admin/ingredients";
@@ -93,6 +94,18 @@ export async function createIngredientAction(formData: FormData): Promise<Create
       unit: (formData.get("unit") as string)?.trim() || "g",
       quantity_on_hand: quantityRaw ? Number(quantityRaw) : 0,
       reorder_point: reorderRaw ? Number(reorderRaw) : undefined,
+      purchase_cost: (() => {
+        const v = (formData.get("purchase_cost") as string)?.trim();
+        return v ? Number(v) : undefined;
+      })(),
+      purchase_quantity: (() => {
+        const v = (formData.get("purchase_quantity") as string)?.trim();
+        return v ? Number(v) : undefined;
+      })(),
+      unit_cost: (() => {
+        const v = (formData.get("unit_cost") as string)?.trim();
+        return v ? Number(v) : undefined;
+      })(),
       notes: trimOrNull(formData.get("notes")) ?? undefined,
     });
 
@@ -130,6 +143,18 @@ export async function updateIngredientAction(id: string, formData: FormData): Pr
       unit: (formData.get("unit") as string)?.trim() || "g",
       quantity_on_hand: quantityRaw ? Number(quantityRaw) : 0,
       reorder_point: reorderRaw ? Number(reorderRaw) : null,
+      purchase_cost: (() => {
+        const v = (formData.get("purchase_cost") as string)?.trim();
+        return v === "" ? null : v ? Number(v) : undefined;
+      })(),
+      purchase_quantity: (() => {
+        const v = (formData.get("purchase_quantity") as string)?.trim();
+        return v === "" ? null : v ? Number(v) : undefined;
+      })(),
+      unit_cost: (() => {
+        const v = (formData.get("unit_cost") as string)?.trim();
+        return v === "" ? null : v ? Number(v) : undefined;
+      })(),
       notes: trimOrNull(formData.get("notes")),
     });
 
@@ -196,6 +221,33 @@ export async function deleteIngredientMsdsAction(
     const message = getErrorMessage(e, "Failed to delete MSDS sheet");
     console.error("deleteIngredientMsdsAction failed", { ingredientId, documentId, message, error: e });
     return { ok: false, error: message };
+  }
+}
+
+export async function linkIngredientGoogleDriveSdsAction(
+  ingredientId: string,
+  formData: FormData
+): Promise<UploadMsdsResult> {
+  try {
+    const file_name = (formData.get("file_name") as string)?.trim() || "SDS";
+    const google_drive_file_id = (formData.get("google_drive_file_id") as string)?.trim();
+    const google_drive_url = (formData.get("google_drive_url") as string)?.trim();
+    if (!google_drive_file_id || !google_drive_url) {
+      return { ok: false, error: "Drive file ID and URL are required" };
+    }
+    const doc = await linkIngredientGoogleDriveSds({
+      ingredient_id: ingredientId,
+      file_name,
+      google_drive_file_id,
+      google_drive_url,
+      verified_at: trimOrNull(formData.get("verified_at")) ?? null,
+      notes: trimOrNull(formData.get("notes")) ?? null,
+    });
+    revalidatePath("/admin/ingredients");
+    revalidatePath(`/admin/ingredients/${ingredientId}`);
+    return { ok: true, id: doc.id };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to link Google Drive SDS") };
   }
 }
 

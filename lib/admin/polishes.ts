@@ -35,6 +35,7 @@ function mapPolishRow(row: Record<string, unknown>): Polish {
     formula_version: num(row.formula_version) || 1,
     is_core: Boolean(row.is_core),
     stock_target: row.stock_target != null ? num(row.stock_target) : undefined,
+    source_prototype_id: (row.source_prototype_id as string) ?? undefined,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -137,6 +138,7 @@ export type CreatePolishInput = {
   notes?: string | null;
   is_core?: boolean;
   stock_target?: number | null;
+  source_prototype_id?: string | null;
 };
 
 export async function createPolish(input: CreatePolishInput): Promise<Polish> {
@@ -150,6 +152,7 @@ export async function createPolish(input: CreatePolishInput): Promise<Polish> {
       notes: input.notes ?? null,
       is_core: input.is_core ?? false,
       stock_target: input.stock_target ?? null,
+      source_prototype_id: input.source_prototype_id ?? null,
       formula_version: 1,
     })
     .select()
@@ -166,6 +169,7 @@ export type UpdatePolishInput = {
   notes?: string | null;
   is_core?: boolean;
   stock_target?: number | null;
+  source_prototype_id?: string | null;
 };
 
 export async function updatePolish(id: string, input: UpdatePolishInput): Promise<Polish> {
@@ -177,6 +181,7 @@ export async function updatePolish(id: string, input: UpdatePolishInput): Promis
   if (input.notes !== undefined) patch.notes = input.notes;
   if (input.is_core !== undefined) patch.is_core = input.is_core;
   if (input.stock_target !== undefined) patch.stock_target = input.stock_target;
+  if (input.source_prototype_id !== undefined) patch.source_prototype_id = input.source_prototype_id;
 
   const { data, error } = await supabase.from("polishes").update(patch).eq("id", id).select().single();
 

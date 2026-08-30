@@ -7,6 +7,7 @@ import { resolveWriteClient, resolveDataClient, num } from "@/lib/admin/supabase
 import { coalesceReleaseDeadlines, type LeadTimeDefaults } from "@/lib/ops/release-deadlines";
 import { getOpsSettings } from "@/lib/admin/ops-settings";
 import type {
+  CollaborationProgram,
   Release,
   ReleasePolish,
   ReleasePolishProductionStatus,
@@ -24,6 +25,8 @@ function mapRelease(row: Record<string, unknown>): Release {
     swatcher_send_by: (row.swatcher_send_by as string) ?? undefined,
     swatch_return_by: (row.swatch_return_by as string) ?? undefined,
     marketing_ready_by: (row.marketing_ready_by as string) ?? undefined,
+    photo_upload_by: (row.photo_upload_by as string) ?? undefined,
+    collaboration_program: (row.collaboration_program as CollaborationProgram) ?? undefined,
     notes: (row.notes as string) ?? undefined,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
@@ -50,6 +53,7 @@ async function leadTimes(): Promise<LeadTimeDefaults> {
     lead_swatch_return_days: s.lead_swatch_return_days,
     lead_swatcher_send_days: s.lead_swatcher_send_days,
     lead_production_complete_days: s.lead_production_complete_days,
+    lead_photo_upload_days: s.lead_photo_upload_days,
   };
 }
 
@@ -115,6 +119,8 @@ export type CreateReleaseInput = {
   swatcher_send_by?: string | null;
   swatch_return_by?: string | null;
   marketing_ready_by?: string | null;
+  photo_upload_by?: string | null;
+  collaboration_program?: CollaborationProgram | null;
   notes?: string | null;
   /** When true (default), fill missing deadlines from launch + lead times. */
   derive_missing_deadlines?: boolean;
@@ -130,6 +136,7 @@ export async function createRelease(input: CreateReleaseInput): Promise<Release>
           swatcher_send_by: input.swatcher_send_by ?? null,
           swatch_return_by: input.swatch_return_by ?? null,
           marketing_ready_by: input.marketing_ready_by ?? null,
+          photo_upload_by: input.photo_upload_by ?? null,
         }
       : coalesceReleaseDeadlines({
           target_launch_date: input.target_launch_date,
@@ -137,6 +144,7 @@ export async function createRelease(input: CreateReleaseInput): Promise<Release>
           swatcher_send_by: input.swatcher_send_by,
           swatch_return_by: input.swatch_return_by,
           marketing_ready_by: input.marketing_ready_by,
+          photo_upload_by: input.photo_upload_by,
           leads,
         });
 
@@ -151,6 +159,8 @@ export async function createRelease(input: CreateReleaseInput): Promise<Release>
       swatcher_send_by: derived.swatcher_send_by,
       swatch_return_by: derived.swatch_return_by,
       marketing_ready_by: derived.marketing_ready_by,
+      photo_upload_by: derived.photo_upload_by,
+      collaboration_program: input.collaboration_program ?? null,
       notes: input.notes ?? null,
     })
     .select()
@@ -185,6 +195,8 @@ export async function updateRelease(id: string, input: UpdateReleaseInput): Prom
           input.marketing_ready_by !== undefined
             ? input.marketing_ready_by
             : existing.marketing_ready_by,
+        photo_upload_by:
+          input.photo_upload_by !== undefined ? input.photo_upload_by : existing.photo_upload_by,
         leads,
       })
     : {
@@ -192,6 +204,7 @@ export async function updateRelease(id: string, input: UpdateReleaseInput): Prom
         swatcher_send_by: input.swatcher_send_by ?? existing.swatcher_send_by ?? null,
         swatch_return_by: input.swatch_return_by ?? existing.swatch_return_by ?? null,
         marketing_ready_by: input.marketing_ready_by ?? existing.marketing_ready_by ?? null,
+        photo_upload_by: input.photo_upload_by ?? existing.photo_upload_by ?? null,
       };
 
   const patch: Record<string, unknown> = {
@@ -199,11 +212,15 @@ export async function updateRelease(id: string, input: UpdateReleaseInput): Prom
     swatcher_send_by: derived.swatcher_send_by,
     swatch_return_by: derived.swatch_return_by,
     marketing_ready_by: derived.marketing_ready_by,
+    photo_upload_by: derived.photo_upload_by,
   };
   if (input.name !== undefined) patch.name = input.name.trim();
   if (input.description !== undefined) patch.description = input.description;
   if (input.status !== undefined) patch.status = input.status;
   if (input.target_launch_date !== undefined) patch.target_launch_date = input.target_launch_date;
+  if (input.collaboration_program !== undefined) {
+    patch.collaboration_program = input.collaboration_program;
+  }
   if (input.notes !== undefined) patch.notes = input.notes;
 
   const { data, error } = await supabase.from("releases").update(patch).eq("id", id).select().single();

@@ -21,6 +21,18 @@ import {
   updateRdPrototype,
 } from "@/lib/admin/rd";
 import {
+  createPolishPrototype,
+  deletePolishPrototype,
+  deletePrototypePhoto,
+  promotePrototypeToProduction,
+  replacePrototypeLines,
+  updatePolishPrototype,
+  uploadPrototypePhoto,
+  getPrototypePhotoSignedUrl,
+} from "@/lib/admin/prototypes";
+import { createRevenueEntry, deleteRevenueEntry } from "@/lib/admin/revenue";
+import { getPackagingBomForPolish, replacePackagingBomLines, updatePackagingBom } from "@/lib/admin/packaging";
+import {
   createSwatcher,
   createSwatcherAssignment,
   deleteSwatcherAssignment,
@@ -29,7 +41,13 @@ import {
 import { createCalendarNote, deleteCalendarNote, toggleCalendarNoteDone } from "@/lib/admin/calendar-notes";
 import { createDailyTask, deleteDailyTask, toggleDailyTask } from "@/lib/admin/daily-tasks";
 import { todayDateString } from "@/lib/admin/supabase-write";
-import type { ReleasePolishProductionStatus, ReleaseStatus, RdPrototypeStatus } from "@/types/admin";
+import type {
+  ReleasePolishProductionStatus,
+  ReleaseStatus,
+  RdPrototypeStatus,
+  PolishPrototypeStatus,
+  RevenueSource,
+} from "@/types/admin";
 import { getErrorMessage } from "@/lib/errors";
 
 export type ActionResult = { ok: true; message?: string; id?: string } | { ok: false; error: string };
@@ -55,6 +73,7 @@ export async function createReleaseAction(formData: FormData): Promise<ActionRes
   try {
     const name = (formData.get("name") as string)?.trim();
     if (!name) return { ok: false, error: "Name is required" };
+    const programRaw = trimOrNull(formData.get("collaboration_program"));
     const release = await createRelease({
       name,
       description: trimOrNull(formData.get("description")),
@@ -63,6 +82,9 @@ export async function createReleaseAction(formData: FormData): Promise<ActionRes
       swatcher_send_by: trimOrNull(formData.get("swatcher_send_by")),
       swatch_return_by: trimOrNull(formData.get("swatch_return_by")),
       marketing_ready_by: trimOrNull(formData.get("marketing_ready_by")),
+      photo_upload_by: trimOrNull(formData.get("photo_upload_by")),
+      collaboration_program:
+        programRaw === "LLB" || programRaw === "SOU" || programRaw === "LBOH" ? programRaw : null,
       notes: trimOrNull(formData.get("notes")),
       status: ((formData.get("status") as string) || "planned") as ReleaseStatus,
     });
@@ -75,6 +97,7 @@ export async function createReleaseAction(formData: FormData): Promise<ActionRes
 
 export async function updateReleaseAction(id: string, formData: FormData): Promise<ActionResult> {
   try {
+    const programRaw = trimOrNull(formData.get("collaboration_program"));
     await updateRelease(id, {
       name: (formData.get("name") as string)?.trim() || undefined,
       description: trimOrNull(formData.get("description")),
@@ -83,6 +106,13 @@ export async function updateReleaseAction(id: string, formData: FormData): Promi
       swatcher_send_by: trimOrNull(formData.get("swatcher_send_by")),
       swatch_return_by: trimOrNull(formData.get("swatch_return_by")),
       marketing_ready_by: trimOrNull(formData.get("marketing_ready_by")),
+      photo_upload_by: trimOrNull(formData.get("photo_upload_by")),
+      collaboration_program:
+        programRaw === undefined
+          ? undefined
+          : programRaw === "LLB" || programRaw === "SOU" || programRaw === "LBOH"
+            ? programRaw
+            : null,
       notes: trimOrNull(formData.get("notes")),
       status: ((formData.get("status") as string) || undefined) as ReleaseStatus | undefined,
     });
@@ -150,9 +180,17 @@ export async function makeBatchAction(formData: FormData): Promise<ActionResult>
     const polishId = (formData.get("polish_id") as string)?.trim();
     if (!polishId) return { ok: false, error: "Polish is required" };
     const sizeRaw = (formData.get("batch_size_oz") as string)?.trim();
+    const bulkRaw = (formData.get("total_bulk_oz") as string)?.trim();
+    const bottlesRaw = (formData.get("bottles_filled") as string)?.trim();
+    const fillRaw = (formData.get("fill_oz_per_bottle") as string)?.trim();
     const batch_size_oz = sizeRaw ? Number(sizeRaw) : 32;
+    const total_bulk_oz = bulkRaw ? Number(bulkRaw) : batch_size_oz;
+    const bottles_filled = bottlesRaw ? Number(bottlesRaw) : 0;
     if (!Number.isFinite(batch_size_oz) || batch_size_oz <= 0) {
       return { ok: false, error: "Batch size must be a positive number" };
+    }
+    if (!Number.isFinite(total_bulk_oz) || total_bulk_oz <= 0) {
+      return { ok: false, error: "Total bulk ounces must be a positive number" };
     }
     const complete_now = formData.get("complete_now") === "on" || formData.get("complete_now") === "true";
     const batch = await createProductionBatch({
@@ -160,12 +198,21 @@ export async function makeBatchAction(formData: FormData): Promise<ActionResult>
       release_id: trimOrNull(formData.get("release_id")),
       release_polish_id: trimOrNull(formData.get("release_polish_id")),
       batch_size_oz,
+      total_bulk_oz,
+      bottles_filled: Number.isFinite(bottles_filled) ? Math.max(0, Math.floor(bottles_filled)) : 0,
+      fill_oz_per_bottle: fillRaw ? Number(fillRaw) : null,
       planned_date: trimOrNull(formData.get("planned_date")),
       notes: trimOrNull(formData.get("notes")),
       complete_now,
     });
-    revalidateOps([`/admin/polishes/${polishId}`]);
-    return { ok: true, id: batch.id, message: complete_now ? "Batch completed" : "Batch planned" };
+    revalidateOps([`/admin/polishes/${polishId}`, "/admin/inventory"]);
+    return {
+      ok: true,
+      id: batch.id,
+      message: complete_now
+        ? `Batch ${batch.lot_number ?? ""} completed`
+        : `Batch ${batch.lot_number ?? ""} planned`,
+    };
   } catch (e) {
     return { ok: false, error: getErrorMessage(e, "Failed to create batch") };
   }
@@ -177,8 +224,8 @@ export async function completeBatchAction(
   releasePolishId?: string
 ): Promise<ActionResult> {
   try {
-    await completeProductionBatch(batchId, releasePolishId);
-    revalidateOps([`/admin/polishes/${polishId}`]);
+    await completeProductionBatch(batchId, { releasePolishId });
+    revalidateOps([`/admin/polishes/${polishId}`, "/admin/inventory"]);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: getErrorMessage(e, "Failed to complete batch") };
@@ -397,5 +444,204 @@ export async function deleteDailyTaskAction(id: string): Promise<ActionResult> {
     return { ok: true };
   } catch (e) {
     return { ok: false, error: getErrorMessage(e, "Failed to delete task") };
+  }
+}
+
+// --- Polish prototypes ---
+
+export async function createPolishPrototypeAction(formData: FormData): Promise<ActionResult> {
+  try {
+    const name = (formData.get("name") as string)?.trim();
+    if (!name) return { ok: false, error: "Name is required" };
+    const linesRaw = (formData.get("lines_json") as string)?.trim();
+    let lines: Array<{ ingredient_name: string; amount_oz: number; ingredient_id?: string | null }> = [];
+    if (linesRaw) {
+      try {
+        lines = JSON.parse(linesRaw);
+      } catch {
+        return { ok: false, error: "Invalid formula lines JSON" };
+      }
+    }
+    const proto = await createPolishPrototype({
+      name,
+      created_date: trimOrNull(formData.get("created_date")) ?? undefined,
+      target_size_ml: Number(formData.get("target_size_ml") || 15) || 15,
+      notes: trimOrNull(formData.get("notes")),
+      observations: trimOrNull(formData.get("observations")),
+      status: ((formData.get("status") as string) || "testing") as PolishPrototypeStatus,
+      lines,
+    });
+    revalidateOps([`/admin/prototypes/${proto.id}`, "/admin/prototypes"]);
+    return { ok: true, id: proto.id };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to create polish prototype") };
+  }
+}
+
+export async function updatePolishPrototypeAction(id: string, formData: FormData): Promise<ActionResult> {
+  try {
+    await updatePolishPrototype(id, {
+      name: (formData.get("name") as string)?.trim() || undefined,
+      created_date: trimOrNull(formData.get("created_date")) ?? undefined,
+      target_size_ml: formData.get("target_size_ml")
+        ? Number(formData.get("target_size_ml"))
+        : undefined,
+      notes: trimOrNull(formData.get("notes")),
+      observations: trimOrNull(formData.get("observations")),
+      status: ((formData.get("status") as string) || undefined) as PolishPrototypeStatus | undefined,
+    });
+    const linesRaw = (formData.get("lines_json") as string)?.trim();
+    if (linesRaw) {
+      const lines = JSON.parse(linesRaw) as Array<{
+        ingredient_name: string;
+        amount_oz: number;
+        ingredient_id?: string | null;
+      }>;
+      await replacePrototypeLines(id, lines);
+    }
+    revalidateOps([`/admin/prototypes/${id}`, "/admin/prototypes"]);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to update prototype") };
+  }
+}
+
+export async function promotePrototypeAction(id: string, formData?: FormData): Promise<ActionResult> {
+  try {
+    const result = await promotePrototypeToProduction(id, {
+      polish_id: formData ? trimOrNull(formData.get("polish_id")) : null,
+      polish_name: formData ? trimOrNull(formData.get("polish_name")) : null,
+      color_hex: formData ? trimOrNull(formData.get("color_hex")) : null,
+    });
+    revalidateOps([
+      `/admin/prototypes/${id}`,
+      `/admin/polishes/${result.polish_id}`,
+      "/admin/polishes",
+      "/admin/prototypes",
+    ]);
+    return { ok: true, id: result.polish_id, message: "Promoted to production formula" };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to promote prototype") };
+  }
+}
+
+export async function uploadPrototypePhotoAction(
+  prototypeId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  try {
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size === 0) {
+      return { ok: false, error: "Choose a photo to upload" };
+    }
+    await uploadPrototypePhoto(prototypeId, file, trimOrNull(formData.get("caption")) ?? undefined);
+    revalidateOps([`/admin/prototypes/${prototypeId}`]);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to upload photo") };
+  }
+}
+
+export async function deletePrototypePhotoAction(
+  photoId: string,
+  prototypeId: string
+): Promise<ActionResult> {
+  try {
+    await deletePrototypePhoto(photoId);
+    revalidateOps([`/admin/prototypes/${prototypeId}`]);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to delete photo") };
+  }
+}
+
+export async function getPrototypePhotoUrlAction(
+  photoId: string
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  try {
+    const url = await getPrototypePhotoSignedUrl(photoId);
+    return { ok: true, url };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to get photo URL") };
+  }
+}
+
+export async function deletePolishPrototypeAction(id: string): Promise<ActionResult> {
+  try {
+    await deletePolishPrototype(id);
+    revalidateOps(["/admin/prototypes"]);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to delete prototype") };
+  }
+}
+
+// --- Revenue ---
+
+export async function createRevenueEntryAction(formData: FormData): Promise<ActionResult> {
+  try {
+    const amount = Number(formData.get("amount"));
+    const source = (formData.get("source") as string)?.trim() as RevenueSource;
+    const received_date = (formData.get("received_date") as string)?.trim();
+    if (!received_date) return { ok: false, error: "Date received is required" };
+    if (!Number.isFinite(amount) || amount < 0) return { ok: false, error: "Valid amount required" };
+    if (!["LLB", "SOU", "LBOH", "other"].includes(source)) {
+      return { ok: false, error: "Source must be LLB, SOU, LBOH, or other" };
+    }
+    const entry = await createRevenueEntry({
+      received_date,
+      amount,
+      source,
+      payment_method: trimOrNull(formData.get("payment_method")) ?? "paypal",
+      external_reference: trimOrNull(formData.get("external_reference")),
+      notes: trimOrNull(formData.get("notes")),
+    });
+    revalidateOps(["/admin/revenue", "/admin"]);
+    return { ok: true, id: entry.id };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to save revenue") };
+  }
+}
+
+export async function deleteRevenueEntryAction(id: string): Promise<ActionResult> {
+  try {
+    await deleteRevenueEntry(id);
+    revalidateOps(["/admin/revenue", "/admin"]);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to delete revenue entry") };
+  }
+}
+
+// --- Packaging BOM ---
+
+export async function savePackagingBomAction(formData: FormData): Promise<ActionResult> {
+  try {
+    const bomId = (formData.get("bom_id") as string)?.trim();
+    if (!bomId) {
+      const existing = await getPackagingBomForPolish(null);
+      if (!existing) return { ok: false, error: "No packaging BOM found — apply migration 016" };
+      return savePackagingBomAction(
+        (() => {
+          formData.set("bom_id", existing.id);
+          return formData;
+        })()
+      );
+    }
+    const name = (formData.get("name") as string)?.trim();
+    if (name) await updatePackagingBom(bomId, { name, notes: trimOrNull(formData.get("notes")) });
+    const linesRaw = (formData.get("lines_json") as string)?.trim();
+    if (linesRaw) {
+      const lines = JSON.parse(linesRaw) as Array<{
+        ingredient_id: string;
+        quantity_per_bottle: number;
+        notes?: string | null;
+      }>;
+      await replacePackagingBomLines(bomId, lines);
+    }
+    revalidateOps(["/admin/packaging", "/admin/polishes"]);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: getErrorMessage(e, "Failed to save packaging BOM") };
   }
 }
