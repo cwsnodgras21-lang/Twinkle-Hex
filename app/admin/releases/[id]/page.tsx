@@ -132,6 +132,8 @@ export default async function ReleaseDetailPage({ params }: Props) {
             swatcher_send_by: release.swatcher_send_by,
             swatch_return_by: release.swatch_return_by,
             marketing_ready_by: release.marketing_ready_by,
+            photo_upload_by: release.photo_upload_by,
+            collaboration_program: release.collaboration_program,
             notes: release.notes,
           }}
         />

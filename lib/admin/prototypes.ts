@@ -6,7 +6,12 @@
 import { resolveWriteClient, resolveDataClient, num } from "@/lib/admin/supabase-write";
 import { createAdminClient } from "@/supabase/admin";
 import { createClient } from "@/supabase/server";
-import { replacePolishRecipeLines, createPolish, updatePolish, getPolishDetail } from "@/lib/admin/polishes";
+import {
+  createPolish,
+  updatePolish,
+  getPolishDetail,
+  replacePolishRecipeLines,
+} from "@/lib/admin/polishes";
 import type {
   PolishPrototype,
   PolishPrototypeLine,

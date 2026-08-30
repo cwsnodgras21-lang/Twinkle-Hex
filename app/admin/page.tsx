@@ -1,10 +1,12 @@
 import { AdminTopbar } from "@/components/admin/AdminTopbar";
 import { CalendarCard } from "@/components/admin/dashboard/CalendarCard";
 import { OrderDemandStrip } from "@/components/admin/dashboard/OrderDemandStrip";
+import { RevenueGoalStrip } from "@/components/admin/dashboard/RevenueGoalStrip";
 import { TodayPlanCard } from "@/components/admin/dashboard/TodayPlanCard";
 import { AtRiskCard, StatsRow, SwatchersCard } from "@/components/admin/dashboard/DashboardCards";
 import { loadDashboardData } from "@/lib/admin/command-center-data";
 import { getCommerceDemandStats } from "@/lib/commerce/orders";
+import { getMonthRevenueReport } from "@/lib/admin/revenue";
 import { getCurrentUser } from "@/lib/auth/helpers";
 
 function greetingForHour(hour: number): string {
@@ -21,13 +23,19 @@ function firstName(user: Awaited<ReturnType<typeof getCurrentUser>>): string {
 }
 
 export default async function AdminDashboardPage() {
-  const [data, user, demand] = await Promise.all([
+  const [data, user, demand, revenue] = await Promise.all([
     loadDashboardData(),
     getCurrentUser(),
     getCommerceDemandStats(),
+    getMonthRevenueReport().catch(() => null),
   ]);
   const now = new Date(`${data.today}T00:00:00Z`);
-  const dateLabel = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  const dateLabel = now.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 
   return (
     <>
@@ -38,7 +46,9 @@ export default async function AdminDashboardPage() {
             <h1 className="font-display m-0 text-2xl font-semibold text-dash-text">
               {greetingForHour(new Date().getHours())}, {firstName(user)}
             </h1>
-            <p className="mt-1 text-dash-muted text-[13.5px]">Here&apos;s what&apos;s happening in the studio today.</p>
+            <p className="mt-1 text-dash-muted text-[13.5px]">
+              Here&apos;s what&apos;s happening in the studio today.
+            </p>
           </div>
           <div className="font-display text-sm font-semibold bg-dash-surface border border-dash-border rounded-lg px-4 py-2.5 text-dash-pinkDark">
             {dateLabel}
@@ -46,6 +56,7 @@ export default async function AdminDashboardPage() {
         </header>
 
         <StatsRow stats={data.stats} />
+        {revenue ? <RevenueGoalStrip report={revenue} /> : null}
         <OrderDemandStrip demand={demand} />
 
         <div className="flex flex-wrap gap-5 items-start">

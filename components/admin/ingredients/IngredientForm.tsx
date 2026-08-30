@@ -256,6 +256,54 @@ export function IngredientForm({ ingredient, mode, defaultCategory }: Ingredient
         </div>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label htmlFor="purchase_cost" className="block text-sm font-medium text-ink mb-1">
+            Purchase cost ($)
+          </label>
+          <input
+            id="purchase_cost"
+            name="purchase_cost"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={ingredient?.purchase_cost ?? ""}
+            className="w-full border border-ink/20 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal"
+            placeholder="What you paid"
+          />
+        </div>
+        <div>
+          <label htmlFor="purchase_quantity" className="block text-sm font-medium text-ink mb-1">
+            Purchased qty
+          </label>
+          <input
+            id="purchase_quantity"
+            name="purchase_quantity"
+            type="number"
+            min="0"
+            step="0.0001"
+            defaultValue={ingredient?.purchase_quantity ?? ""}
+            className="w-full border border-ink/20 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal"
+            placeholder="In unit above"
+          />
+        </div>
+        <div>
+          <label htmlFor="unit_cost" className="block text-sm font-medium text-ink mb-1">
+            Unit cost ($)
+          </label>
+          <input
+            id="unit_cost"
+            name="unit_cost"
+            type="number"
+            min="0"
+            step="0.0001"
+            defaultValue={ingredient?.unit_cost ?? ""}
+            className="w-full border border-ink/20 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal"
+            placeholder="Auto from purchase if blank"
+          />
+        </div>
+      </div>
+
       <div>
         <label htmlFor="notes" className="block text-sm font-medium text-ink mb-1">
           Notes

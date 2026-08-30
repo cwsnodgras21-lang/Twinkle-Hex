@@ -6,6 +6,7 @@ import type { IngredientMsdsDocument } from "@/types/admin";
 import {
   deleteIngredientMsdsAction,
   getIngredientMsdsDownloadUrlAction,
+  linkIngredientGoogleDriveSdsAction,
   uploadIngredientMsdsAction,
 } from "@/app/admin/actions";
 import { getErrorMessage } from "@/lib/errors";
@@ -34,8 +35,30 @@ export function MsdsDocumentsPanel({ ingredientId, documents }: MsdsDocumentsPan
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [uploadPending, setUploadPending] = useState(false);
+  const [drivePending, setDrivePending] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
+
+  async function handleDriveLink(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    setError(null);
+    setDrivePending(true);
+    try {
+      const formData = new FormData(form);
+      const result = await linkIngredientGoogleDriveSdsAction(ingredientId, formData);
+      if (result.ok) {
+        form.reset();
+        router.refresh();
+      } else {
+        setError(result.error);
+      }
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setDrivePending(false);
+    }
+  }
 
   async function handleUpload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -76,7 +99,7 @@ export function MsdsDocumentsPanel({ ingredientId, documents }: MsdsDocumentsPan
   }
 
   async function handleDelete(documentId: string) {
-    if (!window.confirm("Remove this MSDS sheet? This cannot be undone.")) return;
+    if (!window.confirm("Remove this SDS link? This cannot be undone.")) return;
     setError(null);
     setDeletingId(documentId);
     try {
@@ -95,14 +118,92 @@ export function MsdsDocumentsPanel({ ingredientId, documents }: MsdsDocumentsPan
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-ink/60">
+        Google Drive is the long-term source of truth for SDS. Local PDF uploads are legacy only.
+      </p>
+
       {error && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
       )}
 
+      <form onSubmit={handleDriveLink} className="space-y-3 border border-teal/20 rounded-lg p-4 bg-teal/[0.04]">
+        <p className="text-sm font-medium text-ink">Link Google Drive SDS (preferred)</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="drive-file-name" className="block text-sm font-medium text-ink mb-1">
+              File name
+            </label>
+            <input
+              id="drive-file-name"
+              name="file_name"
+              type="text"
+              required
+              className="w-full border border-ink/20 rounded-lg px-3 py-2 text-sm"
+              placeholder="Aurora Chrome SDS.pdf"
+            />
+          </div>
+          <div>
+            <label htmlFor="drive-file-id" className="block text-sm font-medium text-ink mb-1">
+              Drive file ID
+            </label>
+            <input
+              id="drive-file-id"
+              name="google_drive_file_id"
+              type="text"
+              required
+              className="w-full border border-ink/20 rounded-lg px-3 py-2 text-sm"
+              placeholder="1abc…"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="drive-url" className="block text-sm font-medium text-ink mb-1">
+              Drive link
+            </label>
+            <input
+              id="drive-url"
+              name="google_drive_url"
+              type="url"
+              required
+              className="w-full border border-ink/20 rounded-lg px-3 py-2 text-sm"
+              placeholder="https://drive.google.com/…"
+            />
+          </div>
+          <div>
+            <label htmlFor="drive-verified" className="block text-sm font-medium text-ink mb-1">
+              Verified date (optional)
+            </label>
+            <input
+              id="drive-verified"
+              name="verified_at"
+              type="date"
+              className="w-full border border-ink/20 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="drive-notes" className="block text-sm font-medium text-ink mb-1">
+              Notes (optional)
+            </label>
+            <input
+              id="drive-notes"
+              name="notes"
+              type="text"
+              className="w-full border border-ink/20 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+        <button
+          type="submit"
+          disabled={drivePending}
+          className="px-4 py-2 bg-teal text-white rounded-lg hover:opacity-90 disabled:opacity-50 text-sm"
+        >
+          {drivePending ? "Linking…" : "Link Drive SDS"}
+        </button>
+      </form>
+
       <form onSubmit={handleUpload} className="space-y-3 border border-ink/10 rounded-lg p-4 bg-ink/[0.02]">
         <div>
           <label htmlFor="msds-file" className="block text-sm font-medium text-ink mb-1">
-            Upload MSDS sheet (PDF, max 10 MB)
+            Legacy: upload PDF to app storage
           </label>
           <input
             id="msds-file"
@@ -110,7 +211,7 @@ export function MsdsDocumentsPanel({ ingredientId, documents }: MsdsDocumentsPan
             type="file"
             accept="application/pdf,.pdf"
             required
-            className="block w-full text-sm text-ink/80 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-teal file:text-white file:cursor-pointer hover:file:opacity-90"
+            className="block w-full text-sm text-ink/80 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-ink/70 file:text-white file:cursor-pointer"
           />
         </div>
         <div>
@@ -128,14 +229,14 @@ export function MsdsDocumentsPanel({ ingredientId, documents }: MsdsDocumentsPan
         <button
           type="submit"
           disabled={uploadPending}
-          className="px-4 py-2 bg-teal text-white rounded-lg hover:opacity-90 disabled:opacity-50 text-sm"
+          className="px-4 py-2 border border-ink/20 rounded-lg hover:bg-ink/5 disabled:opacity-50 text-sm"
         >
-          {uploadPending ? "Uploading…" : "Upload MSDS"}
+          {uploadPending ? "Uploading…" : "Upload PDF (legacy)"}
         </button>
       </form>
 
       {documents.length === 0 ? (
-        <p className="text-sm text-ink/60">No MSDS sheets attached yet.</p>
+        <p className="text-sm text-ink/60">No SDS linked yet — pigments need an SDS for compliance.</p>
       ) : (
         <ul className="divide-y divide-ink/10 border border-ink/10 rounded-lg overflow-hidden">
           {documents.map((doc) => (
@@ -146,7 +247,10 @@ export function MsdsDocumentsPanel({ ingredientId, documents }: MsdsDocumentsPan
               <div className="min-w-0">
                 <p className="font-medium text-ink truncate">{doc.file_name}</p>
                 <p className="text-sm text-ink/60">
-                  Uploaded {formatDate(doc.uploaded_at)} · {formatFileSize(doc.file_size)}
+                  {doc.source === "google_drive" ? "Google Drive" : "App storage"} ·{" "}
+                  {formatDate(doc.uploaded_at)}
+                  {doc.file_size ? ` · ${formatFileSize(doc.file_size)}` : ""}
+                  {doc.verified_at ? ` · verified ${doc.verified_at}` : ""}
                   {doc.notes ? ` · ${doc.notes}` : ""}
                 </p>
               </div>
@@ -157,7 +261,7 @@ export function MsdsDocumentsPanel({ ingredientId, documents }: MsdsDocumentsPan
                   disabled={openingId === doc.id}
                   className="px-3 py-1.5 text-sm border border-ink/20 rounded-lg hover:bg-ink/5 disabled:opacity-50"
                 >
-                  {openingId === doc.id ? "Opening…" : "View PDF"}
+                  {openingId === doc.id ? "Opening…" : doc.source === "google_drive" ? "Open Drive" : "View PDF"}
                 </button>
                 <button
                   type="button"
