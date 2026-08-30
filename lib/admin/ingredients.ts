@@ -14,6 +14,7 @@ import type {
   IngredientLifecycleStatus,
   IngredientMsdsDocument,
 } from "@/types/admin";
+import { resolveUnitCost } from "@/lib/ops/bottle-cost";
 
 export const MSDS_BUCKET = "msds-sheets";
 export const MSDS_MAX_BYTES = 10 * 1024 * 1024;
@@ -47,6 +48,9 @@ function mapRow(row: Record<string, unknown>): Ingredient {
         : row.low_stock_threshold != null
           ? Number(row.low_stock_threshold)
           : undefined,
+    purchase_cost: row.purchase_cost != null ? Number(row.purchase_cost) : undefined,
+    purchase_quantity: row.purchase_quantity != null ? Number(row.purchase_quantity) : undefined,
+    unit_cost: row.unit_cost != null ? Number(row.unit_cost) : undefined,
     notes: (row.notes as string) ?? undefined,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
@@ -58,9 +62,13 @@ function mapMsdsRow(row: Record<string, unknown>): IngredientMsdsDocument {
     id: row.id as string,
     ingredient_id: row.ingredient_id as string,
     file_name: row.file_name as string,
-    storage_path: row.storage_path as string,
+    storage_path: (row.storage_path as string) ?? undefined,
     file_size: row.file_size != null ? Number(row.file_size) : undefined,
     mime_type: (row.mime_type as string) ?? "application/pdf",
+    source: ((row.source as string) || "supabase_storage") as IngredientMsdsDocument["source"],
+    google_drive_file_id: (row.google_drive_file_id as string) ?? undefined,
+    google_drive_url: (row.google_drive_url as string) ?? undefined,
+    verified_at: (row.verified_at as string) ?? undefined,
     notes: (row.notes as string) ?? undefined,
     uploaded_at: row.uploaded_at as string,
   };
@@ -110,6 +118,15 @@ export async function createIngredient(
       unit: data.unit ?? "g",
       quantity_on_hand: data.quantity_on_hand ?? 0,
       low_stock_threshold: data.reorder_point ?? null,
+      purchase_cost: data.purchase_cost ?? null,
+      purchase_quantity: data.purchase_quantity ?? null,
+      unit_cost:
+        data.unit_cost ??
+        resolveUnitCost({
+          unit_cost: data.unit_cost,
+          purchase_cost: data.purchase_cost,
+          purchase_quantity: data.purchase_quantity,
+        }),
       notes: data.notes ?? null,
     })
     .select()
@@ -130,6 +147,9 @@ export type UpdateIngredientInput = Partial<
     | "reorder_point"
     | "received_date"
     | "lot_number"
+    | "purchase_cost"
+    | "purchase_quantity"
+    | "unit_cost"
   >
 > & {
   sku?: string | null;
@@ -140,10 +160,28 @@ export type UpdateIngredientInput = Partial<
   reorder_point?: number | null;
   received_date?: string | null;
   lot_number?: string | null;
+  purchase_cost?: number | null;
+  purchase_quantity?: number | null;
+  unit_cost?: number | null;
 };
 
 export async function updateIngredient(id: string, data: UpdateIngredientInput): Promise<Ingredient> {
   const supabase = await resolveWriteClient();
+
+  let nextUnitCost = data.unit_cost;
+  if (
+    nextUnitCost === undefined &&
+    (data.purchase_cost !== undefined || data.purchase_quantity !== undefined)
+  ) {
+    const existing = await getIngredientById(id);
+    nextUnitCost = resolveUnitCost({
+      unit_cost: data.unit_cost ?? existing?.unit_cost,
+      purchase_cost: data.purchase_cost !== undefined ? data.purchase_cost : existing?.purchase_cost,
+      purchase_quantity:
+        data.purchase_quantity !== undefined ? data.purchase_quantity : existing?.purchase_quantity,
+    });
+  }
+
   const { data: row, error } = await supabase
     .from("ingredients")
     .update({
@@ -159,6 +197,9 @@ export async function updateIngredient(id: string, data: UpdateIngredientInput):
       ...(data.unit !== undefined && { unit: data.unit }),
       ...(data.quantity_on_hand !== undefined && { quantity_on_hand: data.quantity_on_hand }),
       ...(data.reorder_point !== undefined && { low_stock_threshold: data.reorder_point }),
+      ...(data.purchase_cost !== undefined && { purchase_cost: data.purchase_cost }),
+      ...(data.purchase_quantity !== undefined && { purchase_quantity: data.purchase_quantity }),
+      ...(nextUnitCost !== undefined && { unit_cost: nextUnitCost }),
       ...(data.notes !== undefined && { notes: data.notes }),
     })
     .eq("id", id)
@@ -228,6 +269,7 @@ export async function uploadIngredientMsdsDocument(
       storage_path: storagePath,
       file_size: file.size,
       mime_type: "application/pdf",
+      source: "supabase_storage",
       notes: notes ?? null,
     })
     .select()
@@ -255,7 +297,9 @@ export async function deleteIngredientMsdsDocument(documentId: string): Promise<
   }
 
   const doc = mapMsdsRow(data as Record<string, unknown>);
-  await supabase.storage.from(MSDS_BUCKET).remove([doc.storage_path]);
+  if (doc.storage_path) {
+    await supabase.storage.from(MSDS_BUCKET).remove([doc.storage_path]);
+  }
 
   const { error: deleteError } = await supabase
     .from("ingredient_msds_documents")
@@ -265,6 +309,41 @@ export async function deleteIngredientMsdsDocument(documentId: string): Promise<
   if (deleteError) throw deleteError;
 }
 
+/** Link a Google Drive SDS (canonical compliance source). */
+export async function linkIngredientGoogleDriveSds(input: {
+  ingredient_id: string;
+  file_name: string;
+  google_drive_file_id: string;
+  google_drive_url: string;
+  verified_at?: string | null;
+  notes?: string | null;
+}): Promise<IngredientMsdsDocument> {
+  const ingredient = await getIngredientById(input.ingredient_id);
+  if (!ingredient) throw new Error("Ingredient not found");
+  if (!input.google_drive_file_id.trim() || !input.google_drive_url.trim()) {
+    throw new Error("Google Drive file ID and URL are required");
+  }
+
+  const supabase = await resolveWriteClient();
+  const { data: row, error } = await supabase
+    .from("ingredient_msds_documents")
+    .insert({
+      ingredient_id: input.ingredient_id,
+      file_name: input.file_name.trim() || "SDS",
+      storage_path: null,
+      mime_type: "application/pdf",
+      source: "google_drive",
+      google_drive_file_id: input.google_drive_file_id.trim(),
+      google_drive_url: input.google_drive_url.trim(),
+      verified_at: input.verified_at ?? null,
+      notes: input.notes ?? null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return mapMsdsRow(row as Record<string, unknown>);
+}
+
 export async function getIngredientMsdsSignedUrl(
   documentId: string,
   expiresInSeconds = 3600
@@ -272,7 +351,7 @@ export async function getIngredientMsdsSignedUrl(
   const supabase = await resolveWriteClient();
   const { data, error } = await supabase
     .from("ingredient_msds_documents")
-    .select("storage_path")
+    .select("storage_path, source, google_drive_url")
     .eq("id", documentId)
     .single();
 
@@ -281,15 +360,45 @@ export async function getIngredientMsdsSignedUrl(
     throw error;
   }
 
-  const storagePath = (data as { storage_path: string }).storage_path;
+  const row = data as {
+    storage_path?: string | null;
+    source?: string;
+    google_drive_url?: string | null;
+  };
+  if (row.source === "google_drive" && row.google_drive_url) {
+    return row.google_drive_url;
+  }
+  if (!row.storage_path) throw new Error("No downloadable file for this SDS link");
+
   const { data: signed, error: signError } = await supabase.storage
     .from(MSDS_BUCKET)
-    .createSignedUrl(storagePath, expiresInSeconds);
+    .createSignedUrl(row.storage_path, expiresInSeconds);
 
   if (signError) throw signError;
   if (!signed?.signedUrl) throw new Error("Could not generate download link");
 
   return signed.signedUrl;
+}
+
+export async function listMsdsDocumentsForIngredients(
+  ingredientIds: string[]
+): Promise<Map<string, IngredientMsdsDocument[]>> {
+  const map = new Map<string, IngredientMsdsDocument[]>();
+  if (ingredientIds.length === 0) return map;
+  const supabase = await resolveWriteClient();
+  const { data, error } = await supabase
+    .from("ingredient_msds_documents")
+    .select("*")
+    .in("ingredient_id", ingredientIds);
+  if (error) throw error;
+  for (const id of ingredientIds) map.set(id, []);
+  for (const row of data ?? []) {
+    const doc = mapMsdsRow(row as Record<string, unknown>);
+    const list = map.get(doc.ingredient_id) ?? [];
+    list.push(doc);
+    map.set(doc.ingredient_id, list);
+  }
+  return map;
 }
 
 export async function countIngredientMsdsDocuments(ingredientIds: string[]): Promise<Map<string, number>> {

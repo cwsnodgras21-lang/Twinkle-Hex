@@ -22,6 +22,11 @@ import {
   isRdReviewDue,
 } from "../release-risk";
 import { buildCommandCenter } from "../command-center";
+import { computeBulkRemaining, formatLotNumber } from "../batch-yield";
+import { resolveUnitCost, estimateBottleCost } from "../bottle-cost";
+import { evaluateSdsCompliance } from "../sds-compliance";
+import { formatIngredientList } from "../ingredient-list";
+import { buildMonthRevenueReport } from "../revenue";
 
 describe("formula scaling", () => {
   const lines = [
@@ -65,6 +70,7 @@ describe("release deadlines", () => {
     expect(d.swatch_return_by).toBe("2026-09-10");
     expect(d.swatcher_send_by).toBe("2026-08-27");
     expect(d.production_complete_by).toBe("2026-08-20");
+    expect(d.photo_upload_by).toBe("2026-09-17");
   });
 
   it("keeps explicit dates when provided", () => {
@@ -74,6 +80,97 @@ describe("release deadlines", () => {
     });
     expect(c.production_complete_by).toBe("2026-09-01");
     expect(c.swatcher_send_by).toBe("2026-08-27");
+    expect(c.photo_upload_by).toBe("2026-09-17");
+  });
+});
+
+describe("batch yield (oz + bottles)", () => {
+  it("tracks remaining bulk after partial bottle fill", () => {
+    const r = computeBulkRemaining({
+      total_bulk_oz: 32,
+      bottles_filled: 40,
+      fill_oz_per_bottle: 0.5,
+    });
+    expect(r.ounces_used_for_bottles).toBe(20);
+    expect(r.bulk_remaining_oz).toBe(12);
+  });
+
+  it("formats lot numbers TH-YYYY-MMDD-NNN", () => {
+    expect(formatLotNumber("2026-08-30", 1)).toBe("TH-2026-0830-001");
+    expect(formatLotNumber("2026-08-30", 12)).toBe("TH-2026-0830-012");
+  });
+});
+
+describe("bottle cost", () => {
+  it("resolves unit cost from purchase fields", () => {
+    expect(resolveUnitCost({ purchase_cost: 10, purchase_quantity: 100 })).toBe(0.1);
+    const cost = estimateBottleCost({
+      formulaLinesForOneBottle: [
+        { ingredient_name: "Base", amount: 0.45, unit_cost: 1, category: "ingredient" },
+        { ingredient_name: "Pigment", amount: 0.05, unit_cost: 20, category: "pigment" },
+      ],
+      packagingLines: [
+        { ingredient_id: "b", name: "Bottle", quantity_per_bottle: 1, unit_cost: 0.25 },
+        { ingredient_id: "c", name: "Cap", quantity_per_bottle: 1, unit_cost: 0.15 },
+      ],
+    });
+    expect(cost.formula_cost).toBeCloseTo(0.45);
+    expect(cost.pigment_cost).toBeCloseTo(1);
+    expect(cost.packaging_cost).toBeCloseTo(0.4);
+    expect(cost.total_per_bottle).toBeCloseTo(1.85);
+  });
+});
+
+describe("SDS compliance", () => {
+  it("reports missing pigment SDS clearly", () => {
+    const docs = new Map();
+    docs.set("p1", [{ source: "google_drive" as const, google_drive_file_id: "abc" }]);
+    const status = evaluateSdsCompliance(
+      [
+        { ingredient_id: "p1", name: "Gold Mica", category: "pigment" },
+        { ingredient_id: "p2", name: "Aurora Chrome", category: "pigment" },
+      ],
+      docs
+    );
+    expect(status.ok).toBe(false);
+    expect(status.with_sds_count).toBe(1);
+    expect(status.pigment_count).toBe(2);
+    expect(status.summary).toContain("Missing SDS: Aurora Chrome");
+  });
+});
+
+describe("ingredient list", () => {
+  it("formats a simple copyable list largest-first", () => {
+    expect(
+      formatIngredientList([
+        { ingredient_name: "Mica", amount_oz: 1 },
+        { ingredient_name: "Base", amount_oz: 30 },
+      ])
+    ).toBe("Base, Mica");
+  });
+});
+
+describe("revenue rollup", () => {
+  it("sums by business source toward monthly goal", () => {
+    const report = buildMonthRevenueReport({
+      year: 2026,
+      month: 8,
+      goal: 1500,
+      shopifyTotal: 400,
+      programEntries: [
+        { source: "LLB", amount: 300 },
+        { source: "SOU", amount: 200 },
+        { source: "LBOH", amount: 100 },
+      ],
+      priorShopifyTotal: 350,
+      priorProgramEntries: [{ source: "LLB", amount: 250 }],
+    });
+    expect(report.total).toBe(1000);
+    expect(report.remaining_to_goal).toBe(500);
+    expect(report.by_source.shopify).toBe(400);
+    expect(report.by_source.LLB).toBe(300);
+    expect(report.prior_total).toBe(600);
+    expect(report.mom_delta).toBe(400);
   });
 });
 

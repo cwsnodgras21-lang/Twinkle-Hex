@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { Polish, PolishRecipeLine, ProductionBatch } from "@/types/admin";
+import type { Polish, PolishRecipeLine, ProductionBatch, SdsComplianceStatus } from "@/types/admin";
 import { FormShell } from "@/components/admin";
 import { PolishForm } from "./PolishForm";
 import { RecipeEditor } from "./RecipeEditor";
 import { PolishSwatch } from "./PolishSwatch";
 import { MakeBatchPanel } from "@/components/admin/batches/MakeBatchPanel";
+import { formatIngredientList } from "@/lib/ops/ingredient-list";
 
 function formatOunces(oz: number): string {
   return `${new Intl.NumberFormat("en-US", {
@@ -19,17 +20,38 @@ interface PolishDetailProps {
   polish: Polish;
   lines: PolishRecipeLine[];
   batches?: ProductionBatch[];
+  sds?: SdsComplianceStatus | null;
+  estimatedCostPerBottle?: number | null;
+  defaultFillOz?: number;
+  sourcePrototypeName?: string | null;
 }
 
-/**
- * The recipe lives ON the polish's own record — one page, not a separate
- * route — because "what is this polish" and "how is it made" are the same
- * question in practice.
- */
-export function PolishDetail({ polish, lines, batches = [] }: PolishDetailProps) {
+export function PolishDetail({
+  polish,
+  lines,
+  batches = [],
+  sds = null,
+  estimatedCostPerBottle = null,
+  defaultFillOz,
+  sourcePrototypeName,
+}: PolishDetailProps) {
   const [editingPolish, setEditingPolish] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(false);
+  const [copied, setCopied] = useState(false);
   const totalOz = lines.reduce((sum, l) => sum + l.amount_oz, 0);
+  const ingredientList = formatIngredientList(
+    lines.map((l) => ({ ingredient_name: l.ingredient_name, amount_oz: l.amount_oz }))
+  );
+
+  async function copyIngredientList() {
+    try {
+      await navigator.clipboard.writeText(ingredientList);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -66,11 +88,47 @@ export function PolishDetail({ polish, lines, batches = [] }: PolishDetailProps)
                 {" · "}Sort {polish.sort_order}
                 {polish.color_hex ? ` · ${polish.color_hex}` : ""}
               </p>
+              {sourcePrototypeName || polish.source_prototype_id ? (
+                <p className="text-sm text-ink/60 mt-1">
+                  From prototype:{" "}
+                  {polish.source_prototype_id ? (
+                    <a
+                      href={`/admin/prototypes/${polish.source_prototype_id}`}
+                      className="text-teal hover:underline"
+                    >
+                      {sourcePrototypeName ?? "View prototype"}
+                    </a>
+                  ) : (
+                    sourcePrototypeName
+                  )}
+                </p>
+              ) : null}
+              {estimatedCostPerBottle != null ? (
+                <p className="text-sm text-ink/70 mt-1">
+                  Est. cost per bottle:{" "}
+                  <span className="font-semibold text-ink tabular-nums">
+                    ${estimatedCostPerBottle.toFixed(2)}
+                  </span>
+                </p>
+              ) : null}
               {polish.notes && <p className="text-sm text-ink/70 mt-2 max-w-prose">{polish.notes}</p>}
             </div>
           </div>
         )}
       </FormShell>
+
+      {sds ? (
+        <div
+          className={`rounded-lg border px-4 py-3 text-sm ${
+            sds.ok
+              ? "border-teal/30 bg-teal/5 text-ink"
+              : "border-magenta/40 bg-magenta/5 text-ink"
+          }`}
+        >
+          <p className="font-medium">{sds.ok ? "SDS compliance" : "SDS warning"}</p>
+          <p className="mt-0.5 text-ink/80">{sds.summary}</p>
+        </div>
+      ) : null}
 
       <FormShell
         title="Recipe"
@@ -122,34 +180,67 @@ export function PolishDetail({ polish, lines, batches = [] }: PolishDetailProps)
         )}
       </FormShell>
 
+      {lines.length > 0 ? (
+        <FormShell
+          title="Ingredient list"
+          description="Simple copyable list for subscription / collaboration-box reporting."
+        >
+          <p className="text-sm text-ink/80 leading-relaxed border border-ink/10 rounded-lg px-4 py-3 bg-ink/[0.02]">
+            {ingredientList}
+          </p>
+          <button
+            type="button"
+            onClick={copyIngredientList}
+            className="mt-3 px-4 py-2 text-sm border border-ink/20 rounded-lg hover:bg-ink/5"
+          >
+            {copied ? "Copied" : "Copy list"}
+          </button>
+        </FormShell>
+      ) : null}
+
       <FormShell
         title="Make batch"
-        description={`Default 32 oz. Completing a batch freezes formula v${polish.formula_version}.`}
+        description={`Record bulk ounces and bottles filled. Completing freezes formula v${polish.formula_version}, assigns a lot number, and consumes inventory once.`}
       >
         <MakeBatchPanel
           polishId={polish.id}
           polishName={polish.name}
           formulaVersion={polish.formula_version}
           lines={lines}
+          estimatedCostPerBottle={estimatedCostPerBottle}
+          defaultFillOz={defaultFillOz}
         />
       </FormShell>
 
       {batches.length > 0 ? (
         <FormShell
           title="Batch history"
-          description="Completed and planned batches with frozen formula versions."
+          description="Lot numbers, frozen formulas, bottles filled, and remaining bulk."
         >
           <ul className="divide-y divide-ink/10 border border-ink/10 rounded-lg overflow-hidden">
             {batches.map((b) => (
-              <li key={b.id} className="px-4 py-3 text-sm flex flex-wrap justify-between gap-2">
-                <span className="text-ink">
-                  {b.batch_size_oz} oz · formula v{b.formula_version} · {b.status}
-                </span>
-                <span className="text-ink/50">
-                  {b.completed_at
-                    ? new Date(b.completed_at).toLocaleDateString()
-                    : b.planned_date ?? "—"}
-                </span>
+              <li key={b.id} className="px-4 py-3 text-sm space-y-1">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <span className="font-medium text-ink tabular-nums">
+                    {b.lot_number ?? "No lot #"}
+                  </span>
+                  <span className="text-ink/50">
+                    {b.completed_at
+                      ? new Date(b.completed_at).toLocaleString()
+                      : b.planned_date ?? "—"}
+                  </span>
+                </div>
+                <p className="text-ink/70">
+                  {b.total_bulk_oz} oz bulk · {b.bottles_filled} bottles ·{" "}
+                  {b.bulk_remaining_oz != null
+                    ? `${b.bulk_remaining_oz} oz remaining`
+                    : "remaining n/a"}{" "}
+                  · formula v{b.formula_version} · {b.status}
+                  {b.estimated_cost_per_bottle != null
+                    ? ` · ~$${b.estimated_cost_per_bottle.toFixed(2)}/bottle`
+                    : ""}
+                  {b.inventory_consumed_at ? " · inventory applied" : ""}
+                </p>
               </li>
             ))}
           </ul>

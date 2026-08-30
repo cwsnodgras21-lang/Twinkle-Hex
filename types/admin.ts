@@ -22,6 +22,7 @@ export interface Ingredient {
   category: IngredientCategory;
   lifecycle_status: IngredientLifecycleStatus;
   sku?: string;
+  /** Exactly one supplier per pigment/ingredient row. */
   supplier?: string;
   supplier_identifier?: string;
   /** Pigment-specific: e.g. "Deep navy with gold shimmer". */
@@ -31,19 +32,31 @@ export interface Ingredient {
   unit: string;
   quantity_on_hand: number;
   reorder_point?: number;
+  /** What was paid for the last purchase lot. */
+  purchase_cost?: number;
+  /** Quantity purchased (in `unit`) for that cost. */
+  purchase_quantity?: number;
+  /** Cost per `unit`. Prefer explicit; else purchase_cost / purchase_quantity. */
+  unit_cost?: number;
   notes?: string;
   created_at: string;
   updated_at: string;
 }
 
-/** MSDS/SDS PDF attached to an ingredient (typically a pigment). */
+export type IngredientSdsSource = "supabase_storage" | "google_drive";
+
+/** SDS/MSDS: Google Drive is canonical; Supabase Storage uploads are legacy. */
 export interface IngredientMsdsDocument {
   id: string;
   ingredient_id: string;
   file_name: string;
-  storage_path: string;
+  storage_path?: string;
   file_size?: number;
   mime_type: string;
+  source: IngredientSdsSource;
+  google_drive_file_id?: string;
+  google_drive_url?: string;
+  verified_at?: string;
   notes?: string;
   uploaded_at: string;
 }
@@ -61,6 +74,8 @@ export interface Polish {
   /** Core/repeat sellers vs launch-driven. */
   is_core: boolean;
   stock_target?: number;
+  /** Optional link to the polish prototype this was promoted from. */
+  source_prototype_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -93,6 +108,11 @@ export interface FinishedInventoryItem {
   updated_at: string;
 }
 
+// --- Collaboration / box programs (hard-coded) ---
+export type CollaborationProgram = "LLB" | "SOU" | "LBOH";
+
+export const COLLABORATION_PROGRAMS: CollaborationProgram[] = ["LLB", "SOU", "LBOH"];
+
 // --- Releases / collections ---
 export type ReleaseStatus =
   | "planned"
@@ -112,6 +132,9 @@ export interface Release {
   swatcher_send_by?: string;
   swatch_return_by?: string;
   marketing_ready_by?: string;
+  /** Photo upload deadline (esp. LLB / SOU / LBOH). */
+  photo_upload_by?: string;
+  collaboration_program?: CollaborationProgram;
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -143,18 +166,68 @@ export interface ProductionBatch {
   id: string;
   polish_id: string;
   release_id?: string;
+  /** Legacy / planned size — preserved. Prefer total_bulk_oz for produced bulk. */
   batch_size_oz: number;
+  /** Total bulk polish ounces produced. */
+  total_bulk_oz: number;
+  bottles_filled: number;
+  fill_oz_per_bottle?: number;
+  ounces_used_for_bottles?: number;
+  bulk_remaining_oz?: number;
+  /** Human-readable lot e.g. TH-2026-0830-001. Immutable after create. */
+  lot_number?: string;
   status: ProductionBatchStatus;
   planned_date?: string;
   completed_at?: string;
   formula_version: number;
   formula_snapshot: FormulaSnapshotLine[];
+  inventory_consumed_at?: string;
+  estimated_cost_per_bottle?: number;
   notes?: string;
   created_at: string;
   updated_at: string;
 }
 
-// --- R&D ---
+export type ProductionInventoryMovementKind =
+  | "ingredient_consume"
+  | "packaging_consume"
+  | "finished_bottle_increase";
+
+export interface ProductionInventoryMovement {
+  id: string;
+  production_batch_id: string;
+  movement_kind: ProductionInventoryMovementKind;
+  ingredient_id?: string;
+  finished_inventory_item_id?: string;
+  quantity_delta: number;
+  unit?: string;
+  notes?: string;
+  created_at: string;
+}
+
+// --- Packaging BOM (supplies per finished bottle) ---
+export interface PackagingBom {
+  id: string;
+  name: string;
+  polish_id?: string;
+  is_default: boolean;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PackagingBomLine {
+  id: string;
+  packaging_bom_id: string;
+  ingredient_id: string;
+  quantity_per_bottle: number;
+  sort_order: number;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// --- Ingredient R&D (materials testing — not polish prototypes) ---
 export type RdPrototypeStatus = "in_progress" | "approved" | "rejected";
 
 export interface RdPrototype {
@@ -168,6 +241,45 @@ export interface RdPrototype {
   outcome_notes?: string;
   created_at: string;
   updated_at: string;
+}
+
+// --- Polish prototypes (15 ml development — separate from ingredient R&D) ---
+export type PolishPrototypeStatus = "testing" | "selected" | "rejected" | "archived";
+
+export interface PolishPrototype {
+  id: string;
+  name: string;
+  created_date: string;
+  target_size_ml: number;
+  status: PolishPrototypeStatus;
+  notes?: string;
+  observations?: string;
+  promoted_polish_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PolishPrototypeLine {
+  id: string;
+  prototype_id: string;
+  sort_order: number;
+  ingredient_name: string;
+  amount_oz: number;
+  ingredient_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PolishPrototypePhoto {
+  id: string;
+  prototype_id: string;
+  file_name: string;
+  storage_path: string;
+  file_size?: number;
+  mime_type: string;
+  caption?: string;
+  sort_order: number;
+  uploaded_at: string;
 }
 
 // --- Swatchers ---
@@ -203,10 +315,13 @@ export interface SwatcherAssignment {
 export interface OpsSettings {
   id: number;
   default_batch_oz: number;
+  default_fill_oz_per_bottle: number;
   lead_marketing_days: number;
   lead_swatch_return_days: number;
   lead_swatcher_send_days: number;
   lead_production_complete_days: number;
+  lead_photo_upload_days: number;
+  monthly_revenue_goal: number;
   production_weekdays: number[];
   max_batches_per_day: number;
   updated_at: string;
@@ -236,4 +351,28 @@ export interface OpsCalendarItem {
   done: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// --- Manual program revenue (PayPal-derived) ---
+export type RevenueSource = "LLB" | "SOU" | "LBOH" | "other";
+
+export interface RevenueEntry {
+  id: string;
+  received_date: string;
+  amount: number;
+  source: RevenueSource;
+  payment_method?: string;
+  external_reference?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** SDS compliance summary for a polish formula. */
+export interface SdsComplianceStatus {
+  pigment_count: number;
+  with_sds_count: number;
+  missing: Array<{ ingredient_id?: string; name: string }>;
+  ok: boolean;
+  summary: string;
 }

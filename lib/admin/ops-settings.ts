@@ -5,14 +5,18 @@
 import { resolveWriteClient, resolveDataClient, num } from "@/lib/admin/supabase-write";
 import type { OpsSettings } from "@/types/admin";
 import { DEFAULT_BATCH_OZ, DEFAULT_LEAD_TIMES, DEFAULT_PRODUCTION_WEEKDAYS } from "@/lib/ops";
+import { DEFAULT_FILL_OZ_PER_BOTTLE } from "@/lib/ops/batch-yield";
 
 export const FALLBACK_OPS_SETTINGS: OpsSettings = {
   id: 1,
   default_batch_oz: DEFAULT_BATCH_OZ,
+  default_fill_oz_per_bottle: DEFAULT_FILL_OZ_PER_BOTTLE,
   lead_marketing_days: DEFAULT_LEAD_TIMES.lead_marketing_days,
   lead_swatch_return_days: DEFAULT_LEAD_TIMES.lead_swatch_return_days,
   lead_swatcher_send_days: DEFAULT_LEAD_TIMES.lead_swatcher_send_days,
   lead_production_complete_days: DEFAULT_LEAD_TIMES.lead_production_complete_days,
+  lead_photo_upload_days: DEFAULT_LEAD_TIMES.lead_photo_upload_days,
+  monthly_revenue_goal: 1500,
   production_weekdays: [...DEFAULT_PRODUCTION_WEEKDAYS],
   max_batches_per_day: 2,
   updated_at: new Date(0).toISOString(),
@@ -25,6 +29,10 @@ function mapRow(row: Record<string, unknown>): OpsSettings {
   return {
     id: num(row.id, 1),
     default_batch_oz: num(row.default_batch_oz, DEFAULT_BATCH_OZ),
+    default_fill_oz_per_bottle: num(
+      row.default_fill_oz_per_bottle,
+      DEFAULT_FILL_OZ_PER_BOTTLE
+    ),
     lead_marketing_days: num(row.lead_marketing_days, DEFAULT_LEAD_TIMES.lead_marketing_days),
     lead_swatch_return_days: num(
       row.lead_swatch_return_days,
@@ -38,6 +46,11 @@ function mapRow(row: Record<string, unknown>): OpsSettings {
       row.lead_production_complete_days,
       DEFAULT_LEAD_TIMES.lead_production_complete_days
     ),
+    lead_photo_upload_days: num(
+      row.lead_photo_upload_days,
+      DEFAULT_LEAD_TIMES.lead_photo_upload_days
+    ),
+    monthly_revenue_goal: num(row.monthly_revenue_goal, 1500),
     production_weekdays: weekdays,
     max_batches_per_day: num(row.max_batches_per_day, 2),
     updated_at: (row.updated_at as string) ?? FALLBACK_OPS_SETTINGS.updated_at,

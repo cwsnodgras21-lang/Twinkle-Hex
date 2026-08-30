@@ -13,6 +13,7 @@ export type CalendarEvent = {
     | "swatcher_send"
     | "swatch_return"
     | "marketing"
+    | "photo_upload"
     | "rd_review"
     | "batch"
     | "note";
@@ -31,6 +32,8 @@ export function buildOpsCalendar(input: {
     swatcher_send_by: string | null;
     swatch_return_by: string | null;
     marketing_ready_by: string | null;
+    photo_upload_by?: string | null;
+    collaboration_program?: string | null;
   }>;
   rdReviews: Array<{ id: string; name: string; review_date: string | null; status: string }>;
   batches: Array<{ id: string; polish_name: string; planned_date: string | null; status: string }>;
@@ -74,6 +77,17 @@ export function buildOpsCalendar(input: {
         title: `Marketing ready: ${r.name}`,
         kind: "marketing",
         href: `/admin/releases/${r.id}`,
+      });
+    }
+    if (inRange(r.photo_upload_by)) {
+      const prog = r.collaboration_program ? ` (${r.collaboration_program})` : "";
+      events.push({
+        id: `photo-${r.id}`,
+        date: r.photo_upload_by!,
+        title: `Photo upload due${prog}: ${r.name}`,
+        kind: "photo_upload",
+        href: `/admin/releases/${r.id}`,
+        detail: r.collaboration_program ?? undefined,
       });
     }
     if (inRange(r.target_launch_date)) {

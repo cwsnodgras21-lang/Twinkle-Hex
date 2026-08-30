@@ -128,6 +128,8 @@ export async function loadOpsCalendar(daysAhead = 90): Promise<CalendarEvent[]> 
       swatcher_send_by: r.swatcher_send_by ?? null,
       swatch_return_by: r.swatch_return_by ?? null,
       marketing_ready_by: r.marketing_ready_by ?? null,
+      photo_upload_by: r.photo_upload_by ?? null,
+      collaboration_program: r.collaboration_program ?? null,
     })),
     rdReviews: rd.map((p) => ({
       id: p.id,

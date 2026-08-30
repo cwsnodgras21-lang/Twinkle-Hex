@@ -1,6 +1,45 @@
 # Twinkle & Hex — Change Log
 
-## Shopify order ingest v0.1 (this branch)
+## Production ops requirements (this branch)
+
+Extends the production OS for oz+bottles batches, unfinished bulk, inventory
+consumption, packaging BOM, cost-per-bottle, polish prototypes, Drive SDS,
+photo deadlines, LLB/SOU/LBOH programs, and monthly revenue toward $1,500.
+
+### Schema (`016_production_ops_requirements.sql`)
+
+- Production batches: total bulk oz, bottles filled, remaining bulk, lot numbers
+  (`TH-YYYY-MMDD-NNN`), inventory_consumed_at, cost snapshot
+- Atomic `apply_production_batch_inventory` RPC + movement audit
+- Packaging BOM (supplies per finished bottle — not in polish formula)
+- Polish prototypes (15 ml) + lines + photos bucket (separate from ingredient R&D)
+- Ingredient cost fields; Google Drive SDS as canonical compliance source
+- Releases: collaboration_program (LLB/SOU/LBOH) + photo_upload_by
+- Manual `revenue_entries` by business source; ops monthly goal default $1500
+- Rewards readiness only: `commerce_orders.shopify_customer_id`
+
+### UI
+
+- Make Batch records oz + bottles; shows remaining bulk, lot #, cost
+- Polish detail: SDS warning, copyable ingredient list, prototype link
+- `/admin/prototypes` with photos + Promote to Production Formula
+- `/admin/packaging` BOM editor; `/admin/revenue` + dashboard goal strip
+- Release form: program + photo upload deadline (calendar integrated)
+
+### Intentionally deferred
+
+- Full rewards engine (patches, collection completion, Shopify collections)
+- Automated PayPal ingest (schema ready via revenue_entries)
+- Complex PDF reporting
+
+### Apply on live Supabase
+
+1. Migrations through `015` as needed
+2. `016_production_ops_requirements.sql`
+
+---
+
+## Shopify order ingest v0.1 (prior)
 
 First production-ready commerce path: Shopify sends order webhooks directly to
 Twinkle & Hex; the app verifies HMAC, normalizes, persists, and maps variants to
@@ -20,7 +59,7 @@ polishes. No intermediary orchestration layer.
 
 ### Intentionally not built
 
-- Inventory decrement, production scheduling/batches, Shopify fulfillment
+- Inventory decrement (now in 016), production scheduling/batches, Shopify fulfillment
   write-back, catalog sync, refunds
 
 ### Apply on live Supabase

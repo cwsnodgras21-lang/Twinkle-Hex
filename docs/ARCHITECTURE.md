@@ -27,12 +27,15 @@ production OS, not the old CRM/kanban suite. Polishes stay independent.
 | --- | --- |
 | Polish identity | `polishes` |
 | Current formula | `polish_recipe_lines` (+ `polishes.formula_version`) |
-| Historical formula | `production_batches.formula_snapshot` + `formula_version` |
-| Ingredient + SDS | `ingredients`, `ingredient_msds_documents`, `msds-sheets` |
-| Collection plan | `releases` + `release_polishes` |
-| R&D | `rd_prototypes` (ingredient lifecycle separate) |
-| Swatcher timeline | `swatchers` + `swatcher_assignments` |
-| Defaults | `ops_settings` (single row) |
+| Historical formula | `production_batches.formula_snapshot` + `formula_version` + `lot_number` |
+| Ingredient + SDS | `ingredients`; Google Drive SDS via `ingredient_msds_documents` (canonical); legacy Storage uploads secondary |
+| Packaging per bottle | `packaging_boms` + `packaging_bom_lines` (supplies — not in polish formula) |
+| Collection plan | `releases` + `release_polishes` (+ `collaboration_program`, `photo_upload_by`) |
+| Ingredient R&D | `rd_prototypes` (material testing; separate from polish prototypes) |
+| Polish prototypes | `polish_prototypes` + lines + photos (15 ml; promote → production formula) |
+| Swatcher timeline | `swatchers` + `swatcher_assignments` (bottles from same production batch) |
+| Program revenue | `revenue_entries` (LLB/SOU/LBOH); Shopify totals from `commerce_orders` |
+| Defaults | `ops_settings` (single row; fill oz, photo lead, $1500 goal) |
 | Marketing notes | `ops_calendar_items` (thin; calendar also derives from releases/R&D/batches) |
 
 ## Lifecycle boundaries
@@ -109,15 +112,17 @@ Gravity / reductive scope from in-repo docs.
 2. Apply `013_production_operating_system.sql`.
 3. Apply `014_ops_daily_tasks.sql` if used.
 4. Apply `015_commerce_shopify_orders.sql` for Shopify ingest.
+5. Apply `016_production_ops_requirements.sql` for oz/bottles batches, packaging BOM,
+   polish prototypes, Drive SDS, photo deadlines, and revenue.
 
 ## Intentionally not built
 
-- Core stock-target replenishment automation
-- Full ingredient consumption ledger per batch
-- Multi-tenancy, AI agents, MRP, purchasing
+- Full rewards engine (see `shopify_customer_id` + `rewards_future_notes` readiness only)
+- Automated PayPal ingest (manual `revenue_entries` ready for later automation)
+- Core stock-target replenishment automation / MRP / purchasing
+- Multi-tenancy, AI agents
 - Re-enabling admin login (still `ADMIN_LOGIN_DISABLED`)
-- Inventory decrement, production batch auto-create, Shopify fulfillment writes,
-  or catalog sync
+- Shopify fulfillment write-back or catalog sync
 
 ## Future opportunities
 

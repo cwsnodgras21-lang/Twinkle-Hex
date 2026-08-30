@@ -8,6 +8,7 @@ export type LeadTimeDefaults = {
   lead_swatch_return_days: number;
   lead_swatcher_send_days: number;
   lead_production_complete_days: number;
+  lead_photo_upload_days: number;
 };
 
 /** Documented defaults until ops_settings UI exists. */
@@ -16,6 +17,7 @@ export const DEFAULT_LEAD_TIMES: LeadTimeDefaults = {
   lead_swatch_return_days: 21,
   lead_swatcher_send_days: 35,
   lead_production_complete_days: 42,
+  lead_photo_upload_days: 14,
 };
 
 function parseDateOnly(isoDate: string): Date {
@@ -39,6 +41,7 @@ export type DerivedDeadlines = {
   swatch_return_by: string;
   swatcher_send_by: string;
   production_complete_by: string;
+  photo_upload_by: string;
 };
 
 export function deriveDeadlinesFromLaunch(
@@ -51,6 +54,7 @@ export function deriveDeadlinesFromLaunch(
     swatch_return_by: subtractDays(targetLaunchDate, leads.lead_swatch_return_days),
     swatcher_send_by: subtractDays(targetLaunchDate, leads.lead_swatcher_send_days),
     production_complete_by: subtractDays(targetLaunchDate, leads.lead_production_complete_days),
+    photo_upload_by: subtractDays(targetLaunchDate, leads.lead_photo_upload_days),
   };
 }
 
@@ -63,12 +67,14 @@ export function coalesceReleaseDeadlines(input: {
   swatcher_send_by?: string | null;
   swatch_return_by?: string | null;
   marketing_ready_by?: string | null;
+  photo_upload_by?: string | null;
   leads?: LeadTimeDefaults;
 }): {
   production_complete_by: string | null;
   swatcher_send_by: string | null;
   swatch_return_by: string | null;
   marketing_ready_by: string | null;
+  photo_upload_by: string | null;
 } {
   const leads = input.leads ?? DEFAULT_LEAD_TIMES;
   const derived = input.target_launch_date
@@ -81,5 +87,6 @@ export function coalesceReleaseDeadlines(input: {
     swatcher_send_by: input.swatcher_send_by ?? derived?.swatcher_send_by ?? null,
     swatch_return_by: input.swatch_return_by ?? derived?.swatch_return_by ?? null,
     marketing_ready_by: input.marketing_ready_by ?? derived?.marketing_ready_by ?? null,
+    photo_upload_by: input.photo_upload_by ?? derived?.photo_upload_by ?? null,
   };
 }

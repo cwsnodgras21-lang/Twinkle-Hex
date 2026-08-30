@@ -20,6 +20,8 @@ export function ReleaseForm({
     swatcher_send_by?: string;
     swatch_return_by?: string;
     marketing_ready_by?: string;
+    photo_upload_by?: string;
+    collaboration_program?: string;
     notes?: string;
   };
 }) {
@@ -63,8 +65,25 @@ export function ReleaseForm({
         </label>
         <input id="target_launch_date" name="target_launch_date" type="date" defaultValue={defaults?.target_launch_date} className={field} />
         <p className="text-xs text-ink/50 mt-1">
-          Leaving upstream dates blank fills them from launch using documented lead times (prod 42d, swatcher send 35d, return 21d, marketing 7d).
+          Leaving upstream dates blank fills them from launch (prod 42d, swatcher send 35d, return 21d,
+          photo upload 14d, marketing 7d).
         </p>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-ink mb-1" htmlFor="collaboration_program">
+          Collaboration / box program
+        </label>
+        <select
+          id="collaboration_program"
+          name="collaboration_program"
+          defaultValue={defaults?.collaboration_program ?? ""}
+          className={field}
+        >
+          <option value="">None (store / own)</option>
+          <option value="LLB">LLB</option>
+          <option value="SOU">SOU</option>
+          <option value="LBOH">LBOH</option>
+        </select>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -84,6 +103,12 @@ export function ReleaseForm({
             Swatch return by
           </label>
           <input id="swatch_return_by" name="swatch_return_by" type="date" defaultValue={defaults?.swatch_return_by} className={field} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-ink mb-1" htmlFor="photo_upload_by">
+            Photo upload by
+          </label>
+          <input id="photo_upload_by" name="photo_upload_by" type="date" defaultValue={defaults?.photo_upload_by} className={field} />
         </div>
         <div>
           <label className="block text-sm font-medium text-ink mb-1" htmlFor="marketing_ready_by">

@@ -6,6 +6,7 @@ import { makeBatchAction } from "@/app/admin/ops-actions";
 import { previewBatchClientScale } from "@/components/admin/batches/preview-scale";
 import type { PolishRecipeLine } from "@/types/admin";
 import { DEFAULT_BATCH_OZ } from "@/lib/ops/formula-scaling";
+import { DEFAULT_FILL_OZ_PER_BOTTLE, computeBulkRemaining } from "@/lib/ops/batch-yield";
 
 interface MakeBatchPanelProps {
   polishId: string;
@@ -14,6 +15,8 @@ interface MakeBatchPanelProps {
   lines: PolishRecipeLine[];
   releaseId?: string;
   releasePolishId?: string;
+  estimatedCostPerBottle?: number | null;
+  defaultFillOz?: number;
 }
 
 export function MakeBatchPanel({
@@ -23,14 +26,25 @@ export function MakeBatchPanel({
   lines,
   releaseId,
   releasePolishId,
+  estimatedCostPerBottle,
+  defaultFillOz = DEFAULT_FILL_OZ_PER_BOTTLE,
 }: MakeBatchPanelProps) {
   const router = useRouter();
   const [batchSize, setBatchSize] = useState(String(DEFAULT_BATCH_OZ));
+  const [bottles, setBottles] = useState("0");
+  const [fillOz, setFillOz] = useState(String(defaultFillOz));
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const sizeNum = Number(batchSize) || 0;
+  const bottlesNum = Math.max(0, Math.floor(Number(bottles) || 0));
+  const fillNum = Number(fillOz) || defaultFillOz;
+  const yieldMath = computeBulkRemaining({
+    total_bulk_oz: sizeNum > 0 ? sizeNum : DEFAULT_BATCH_OZ,
+    bottles_filled: bottlesNum,
+    fill_oz_per_bottle: fillNum,
+  });
   const scaled = previewBatchClientScale(
     lines.map((l) => ({ ingredient_name: l.ingredient_name, amount_oz: l.amount_oz })),
     sizeNum > 0 ? sizeNum : DEFAULT_BATCH_OZ
@@ -42,7 +56,11 @@ export function MakeBatchPanel({
     startTransition(async () => {
       const fd = new FormData();
       fd.set("polish_id", polishId);
-      fd.set("batch_size_oz", String(sizeNum > 0 ? sizeNum : DEFAULT_BATCH_OZ));
+      const bulk = sizeNum > 0 ? sizeNum : DEFAULT_BATCH_OZ;
+      fd.set("batch_size_oz", String(bulk));
+      fd.set("total_bulk_oz", String(bulk));
+      fd.set("bottles_filled", String(bottlesNum));
+      fd.set("fill_oz_per_bottle", String(fillNum));
       if (releaseId) fd.set("release_id", releaseId);
       if (releasePolishId) fd.set("release_polish_id", releasePolishId);
       if (completeNow) fd.set("complete_now", "true");
@@ -69,23 +87,69 @@ export function MakeBatchPanel({
     <div className="space-y-4">
       <p className="text-sm text-ink/60">
         Formula version <span className="font-medium text-ink">v{formulaVersion}</span> will be
-        snapshotted onto the batch so later recipe edits cannot rewrite history.
+        snapshotted onto the batch. Lot numbers (TH-YYYY-MMDD-NNN) are assigned automatically.
+        Swatcher bottles come from this same batch — there is no separate swatcher batch.
       </p>
 
-      <div className="max-w-xs">
-        <label htmlFor="batch_size_oz" className="block text-sm font-medium text-ink mb-1">
-          Batch size (oz)
-        </label>
-        <input
-          id="batch_size_oz"
-          type="number"
-          min="0.1"
-          step="0.1"
-          value={batchSize}
-          onChange={(e) => setBatchSize(e.target.value)}
-          className="w-full border border-ink/20 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl">
+        <div>
+          <label htmlFor="batch_size_oz" className="block text-sm font-medium text-ink mb-1">
+            Bulk produced (oz)
+          </label>
+          <input
+            id="batch_size_oz"
+            type="number"
+            min="0.1"
+            step="0.1"
+            value={batchSize}
+            onChange={(e) => setBatchSize(e.target.value)}
+            className="w-full border border-ink/20 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal"
+          />
+        </div>
+        <div>
+          <label htmlFor="bottles_filled" className="block text-sm font-medium text-ink mb-1">
+            Bottles filled
+          </label>
+          <input
+            id="bottles_filled"
+            type="number"
+            min="0"
+            step="1"
+            value={bottles}
+            onChange={(e) => setBottles(e.target.value)}
+            className="w-full border border-ink/20 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal"
+          />
+        </div>
+        <div>
+          <label htmlFor="fill_oz_per_bottle" className="block text-sm font-medium text-ink mb-1">
+            Oz per bottle
+          </label>
+          <input
+            id="fill_oz_per_bottle"
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={fillOz}
+            onChange={(e) => setFillOz(e.target.value)}
+            className="w-full border border-ink/20 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal"
+          />
+        </div>
       </div>
+
+      <p className="text-sm text-ink/70">
+        Remaining bulk:{" "}
+        <span className="font-semibold text-ink tabular-nums">
+          {yieldMath.bulk_remaining_oz.toLocaleString("en-US", { maximumFractionDigits: 2 })} oz
+        </span>
+        {estimatedCostPerBottle != null ? (
+          <>
+            {" · "}Est. cost/bottle:{" "}
+            <span className="font-semibold text-ink tabular-nums">
+              ${estimatedCostPerBottle.toFixed(2)}
+            </span>
+          </>
+        ) : null}
+      </p>
 
       <ul className="divide-y divide-ink/10 border border-ink/10 rounded-lg overflow-hidden">
         {scaled.map((line) => (
